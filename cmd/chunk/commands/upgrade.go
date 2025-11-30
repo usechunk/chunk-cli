@@ -31,13 +31,13 @@ Examples:
 	Run: func(cmd *cobra.Command, args []string) {
 		modpack := args[0]
 		fmt.Printf("Upgrading modpack: %s\n", modpack)
-		
+
 		if upgradeDir != "" {
 			fmt.Printf("Server directory: %s\n", upgradeDir)
 		} else {
 			fmt.Printf("Server directory: ./server\n")
 		}
-		
+
 		fmt.Println()
 		fmt.Println("⚠️  Upgrade functionality not yet implemented")
 		fmt.Println()

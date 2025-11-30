@@ -14,11 +14,11 @@ func PromptForTelemetry() error {
 	if err != nil {
 		return err
 	}
-	
+
 	if cfg.TelemetryAsked {
 		return nil
 	}
-	
+
 	fmt.Println()
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Println("📊 Help improve Chunk!")
@@ -35,22 +35,22 @@ func PromptForTelemetry() error {
 	fmt.Println("  • World data or configs")
 	fmt.Println()
 	fmt.Print("Enable telemetry? [Y/n]: ")
-	
+
 	reader := bufio.NewReader(os.Stdin)
 	response, err := reader.ReadString('\n')
 	if err != nil {
 		return err
 	}
-	
+
 	response = strings.TrimSpace(strings.ToLower(response))
-	
+
 	enabled := response == "" || response == "y" || response == "yes"
 	cfg.SetTelemetry(enabled)
-	
+
 	if err := cfg.Save(); err != nil {
 		return err
 	}
-	
+
 	if enabled {
 		fmt.Println("✓ Telemetry enabled. Thank you!")
 	} else {
@@ -58,7 +58,7 @@ func PromptForTelemetry() error {
 	}
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Println()
-	
+
 	return nil
 }
 
@@ -67,7 +67,7 @@ func TrackEvent(eventName string, properties map[string]interface{}) {
 	if err != nil || !cfg.IsTelemetryEnabled() {
 		return
 	}
-	
+
 	// TODO: Implement actual telemetry sending
 	// For now, this is a no-op placeholder
 }

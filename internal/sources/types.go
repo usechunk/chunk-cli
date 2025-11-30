@@ -18,18 +18,18 @@ type ModpackSource interface {
 }
 
 type Modpack struct {
-	Name          string
-	Identifier    string
-	Description   string
-	MCVersion     string
-	Loader        LoaderType
-	LoaderVersion string
-	Author        string
-	Source        string
-	Mods          []*Mod
-	Dependencies  []string
+	Name           string
+	Identifier     string
+	Description    string
+	MCVersion      string
+	Loader         LoaderType
+	LoaderVersion  string
+	Author         string
+	Source         string
+	Mods           []*Mod
+	Dependencies   []string
 	RecommendedRAM int
-	ManifestURL   string
+	ManifestURL    string
 }
 
 type ModpackSearchResult struct {
@@ -43,21 +43,30 @@ type ModpackSearchResult struct {
 }
 
 type Version struct {
-	Version      string
-	MCVersion    string
-	Loader       LoaderType
-	ReleaseDate  string
-	IsStable     bool
-	DownloadURL  string
+	Version     string
+	MCVersion   string
+	Loader      LoaderType
+	ReleaseDate string
+	IsStable    bool
+	DownloadURL string
 }
 
 type Mod struct {
 	Name         string
+	ID           string
 	Version      string
 	FileName     string
 	DownloadURL  string
 	Side         ModSide
 	Required     bool
+	Dependencies []ModDependency
+}
+
+// ModDependency represents a dependency of a mod.
+type ModDependency struct {
+	ModID       string
+	VersionExpr string
+	Required    bool
 }
 
 type LoaderType string
@@ -80,11 +89,11 @@ func DetectSource(identifier string) string {
 	if len(identifier) > 0 && identifier[0] == '.' || identifier[0] == '/' {
 		return "local"
 	}
-	
+
 	if len(identifier) > 9 && identifier[:9] == "modrinth:" {
 		return "modrinth"
 	}
-	
+
 	if len(identifier) > 0 && (identifier[0] >= 'a' && identifier[0] <= 'z' || identifier[0] >= 'A' && identifier[0] <= 'Z') {
 		for i, ch := range identifier {
 			if ch == '/' {
@@ -95,6 +104,6 @@ func DetectSource(identifier string) string {
 			}
 		}
 	}
-	
+
 	return "chunkhub"
 }
