@@ -10,6 +10,7 @@ type Config struct {
 	TelemetryEnabled *bool  `json:"telemetry_enabled,omitempty"`
 	TelemetryAsked   bool   `json:"telemetry_asked"`
 	ConfigVersion    string `json:"config_version"`
+	ChunkHubAPIKey   string `json:"chunkhub_api_key,omitempty"`
 }
 
 func GetConfigPath() (string, error) {
@@ -76,4 +77,12 @@ func (c *Config) IsTelemetryEnabled() bool {
 func (c *Config) SetTelemetry(enabled bool) {
 	c.TelemetryEnabled = &enabled
 	c.TelemetryAsked = true
+}
+
+func (c *Config) GetChunkHubAPIKey() string {
+	return c.ChunkHubAPIKey
+}
+
+func (c *Config) SetChunkHubAPIKey(apiKey string) {
+	c.ChunkHubAPIKey = apiKey
 }
