@@ -1,6 +1,8 @@
 # Chunk - Modpack Server Toolkit
 
-> **A universal CLI for deploying modded Minecraft servers in seconds, not hours.**
+> **Part of the [Chunk ecosystem](https://github.com/usechunk/chunk-docs) - see [Architecture](https://github.com/usechunk/chunk-docs/blob/main/ARCHITECTURE.md)**
+
+A universal CLI for deploying modded Minecraft servers in seconds, not hours.
 
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](go.mod)
 [![Python Version](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python)](api/pyproject.toml)
@@ -143,9 +145,16 @@ chunk diff atm9
 
 ## 📖 Documentation
 
+- **[Architecture](https://github.com/usechunk/chunk-docs/blob/main/ARCHITECTURE.md)** - Understanding the Chunk platform
 - **[CLI Usage Guide](docs/CLI_USAGE.md)** - Complete command reference
-- **[API Reference](docs/API_REFERENCE.md)** - ChunkHub API documentation
+- **[API Reference](https://github.com/usechunk/chunk-docs/blob/main/API.md)** - ChunkHub API documentation
 - **[.chunk.json Spec](docs/chunk-json-spec.md)** - Modpack manifest format
+
+## 🔗 Related Projects
+
+- [chunk-docs](https://github.com/usechunk/chunk-docs) - Central documentation
+- [chunk-api](https://github.com/usechunk/chunk-api) - Registry backend
+- [chunk-app](https://github.com/usechunk/chunk-app) - Web interface
 
 ## 🎨 For Modpack Creators
 
