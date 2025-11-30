@@ -54,12 +54,13 @@ The command will:
 		fmt.Printf("📦 Found: %s\n", pack.Name)
 		fmt.Printf("   Minecraft: %s | Loader: %s\n", pack.MCVersion, pack.Loader)
 
-		if len(pack.Mods) > 0 {
+		hasMods := len(pack.Mods) > 0
+		if hasMods {
 			fmt.Printf("   Mods: %d\n", len(pack.Mods))
 		}
 
 		// Resolve dependencies unless skipped
-		if !skipDeps && len(pack.Mods) > 0 {
+		if !skipDeps && hasMods {
 			fmt.Println("\n🔍 Resolving dependencies...")
 
 			result, err := resolveDependencies(pack)

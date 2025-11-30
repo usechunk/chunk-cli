@@ -19,21 +19,23 @@ type ModRegistry interface {
 
 // Resolver handles dependency resolution for mods.
 type Resolver struct {
-	registry    ModRegistry
-	resolved    map[string]*ResolvedMod
-	resolving   map[string]bool // Track mods currently being resolved (for cycle detection)
-	conflicts   []Conflict
-	missingDeps []Dependency
+	registry      ModRegistry
+	resolved      map[string]*ResolvedMod
+	resolving     map[string]bool // Track mods currently being resolved (for cycle detection)
+	conflicts     []Conflict
+	missingDeps   []Dependency
+	resolutionErr []error // Track resolution errors
 }
 
 // NewResolver creates a new dependency resolver.
 func NewResolver(registry ModRegistry) *Resolver {
 	return &Resolver{
-		registry:    registry,
-		resolved:    make(map[string]*ResolvedMod),
-		resolving:   make(map[string]bool),
-		conflicts:   []Conflict{},
-		missingDeps: []Dependency{},
+		registry:      registry,
+		resolved:      make(map[string]*ResolvedMod),
+		resolving:     make(map[string]bool),
+		conflicts:     []Conflict{},
+		resolutionErr: []error{},
+		missingDeps:   []Dependency{},
 	}
 }
 
@@ -45,12 +47,13 @@ func (r *Resolver) Resolve(mods []*ModInfo) (*ResolutionResult, error) {
 	r.resolving = make(map[string]bool)
 	r.conflicts = []Conflict{}
 	r.missingDeps = []Dependency{}
+	r.resolutionErr = []error{}
 
 	// Resolve each mod
 	for _, mod := range mods {
 		if err := r.resolveMod(mod, ""); err != nil {
-			// Continue resolving other mods to collect all conflicts
-			continue
+			// Track the error but continue resolving other mods to collect all issues
+			r.resolutionErr = append(r.resolutionErr, fmt.Errorf("failed to resolve %s: %w", mod.ID, err))
 		}
 	}
 
@@ -217,6 +220,11 @@ func (r *Resolver) HasConflicts() bool {
 // HasMissingDeps returns true if there are any unresolved dependencies.
 func (r *Resolver) HasMissingDeps() bool {
 	return len(r.missingDeps) > 0
+}
+
+// GetResolutionErrors returns any errors encountered during resolution.
+func (r *Resolver) GetResolutionErrors() []error {
+	return r.resolutionErr
 }
 
 // FindBestVersion finds the best version that satisfies multiple version expressions.

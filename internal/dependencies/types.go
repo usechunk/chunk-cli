@@ -13,6 +13,9 @@ var (
 	ErrUnresolvedDep       = errors.New("unresolved dependency")
 	ErrVersionConflict     = errors.New("version conflict")
 	ErrInvalidVersionRange = errors.New("invalid version range")
+
+	// versionRangeRegex matches version range format: "1.0.0-2.0.0"
+	versionRangeRegex = regexp.MustCompile(`^\d+\.\d+\.\d+-\d+\.\d+\.\d+$`)
 )
 
 // Dependency represents a mod dependency with version constraints.
@@ -218,7 +221,7 @@ func ParseVersionRange(expr string) (*VersionRange, error) {
 	}
 
 	// Handle range with hyphen: "1.0.0-2.0.0"
-	if matched, _ := regexp.MatchString(`^\d+\.\d+\.\d+-\d+\.\d+\.\d+$`, expr); matched {
+	if versionRangeRegex.MatchString(expr) {
 		parts := strings.SplitN(expr, "-", 2)
 		if len(parts) == 2 {
 			minV, err := ParseVersion(parts[0])

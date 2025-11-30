@@ -5,6 +5,17 @@ import (
 	"strings"
 )
 
+// systemDependencies are mod IDs that represent system dependencies
+// (loader, minecraft, java) which should be skipped during dependency resolution.
+var systemDependencies = map[string]bool{
+	"fabricloader": true,
+	"fabric":       true,
+	"minecraft":    true,
+	"java":         true,
+	"forge":        true,
+	"neoforge":     true,
+}
+
 // ModrinthDependency represents a dependency in Modrinth format.
 type ModrinthDependency struct {
 	VersionID      string `json:"version_id"`
@@ -108,8 +119,8 @@ func ParseFabricModJSON(data []byte) (*ModInfo, error) {
 
 	// Parse required dependencies
 	for modID, versionExpr := range fabric.Depends {
-		// Skip fabric loader and minecraft
-		if modID == "fabricloader" || modID == "fabric" || modID == "minecraft" || modID == "java" {
+		// Skip system dependencies
+		if systemDependencies[modID] {
 			continue
 		}
 
@@ -171,8 +182,8 @@ func ParseForgeModDependencies(modID string, deps []struct {
 	var dependencies []Dependency
 
 	for _, dep := range deps {
-		// Skip forge and minecraft dependencies
-		if dep.ModID == "forge" || dep.ModID == "minecraft" || dep.ModID == "neoforge" {
+		// Skip system dependencies
+		if systemDependencies[dep.ModID] {
 			continue
 		}
 
