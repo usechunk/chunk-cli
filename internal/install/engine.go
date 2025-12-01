@@ -19,6 +19,7 @@ type Installer struct {
 	httpClient       *http.Client
 	backupDir        string
 	absDestDir       string
+	skipVerify       bool
 }
 
 // NewInstaller creates a new Installer instance
@@ -37,6 +38,7 @@ type Options struct {
 	Identifier   string
 	DestDir      string
 	PreserveData bool
+	SkipVerify   bool
 }
 
 // Result contains the outcome of an installation
@@ -77,8 +79,9 @@ func (i *Installer) Install(opts *Options) (*Result, error) {
 		return nil, fmt.Errorf("failed to resolve destination path: %w", err)
 	}
 
-	// Store absolute path for rollback
+	// Store options for later use
 	i.absDestDir = absDestDir
+	i.skipVerify = opts.SkipVerify
 
 	ui.PrintInfo(fmt.Sprintf("Installing to: %s", absDestDir))
 
@@ -282,6 +285,7 @@ func (i *Installer) installLoader(modpack *sources.Modpack, destDir string) erro
 
 func (i *Installer) downloadMods(mods []*sources.Mod, destDir string) (int, error) {
 	modManager := converter.NewModManager()
+	modManager.SkipVerify = i.skipVerify
 	serverMods := modManager.FilterServerMods(mods)
 
 	if len(serverMods) == 0 {

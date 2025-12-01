@@ -11,6 +11,7 @@ import (
 
 var (
 	installDir string
+	skipVerify bool
 )
 
 var InstallCmd = &cobra.Command{
@@ -41,6 +42,12 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	fmt.Println("🚀 Chunk Modpack Installer")
 	fmt.Println()
 
+	// Show warning if skip-verify is enabled
+	if skipVerify {
+		ui.PrintWarning("Checksum verification disabled (--skip-verify). Files will not be verified for integrity.")
+		fmt.Println()
+	}
+
 	installer := install.NewInstaller()
 
 	// Normalize destination directory
@@ -53,6 +60,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		Identifier:   modpack,
 		DestDir:      destDir,
 		PreserveData: false,
+		SkipVerify:   skipVerify,
 	}
 
 	result, err := installer.Install(opts)
@@ -126,6 +134,7 @@ func displayModpackInfo(info *install.ModpackDisplayInfo) {
 
 func init() {
 	InstallCmd.Flags().StringVarP(&installDir, "dir", "d", "", "Installation directory (default: ./server)")
+	InstallCmd.Flags().BoolVar(&skipVerify, "skip-verify", false, "Skip checksum verification of downloaded files (not recommended)")
 
 	// Suppress usage printing on errors
 	InstallCmd.SilenceUsage = true
