@@ -2,6 +2,7 @@ package deps
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -429,16 +430,16 @@ func TestDependencyGraph_GenerateGraph(t *testing.T) {
 	}
 
 	// Check for expected content
-	if !contains(dot, "digraph dependencies") {
+	if !strings.Contains(dot, "digraph dependencies") {
 		t.Error("Expected 'digraph dependencies' in output")
 	}
-	if !contains(dot, "mod_a") {
+	if !strings.Contains(dot, "mod_a") {
 		t.Error("Expected 'mod_a' node in output")
 	}
-	if !contains(dot, "mod_b") {
+	if !strings.Contains(dot, "mod_b") {
 		t.Error("Expected 'mod_b' node in output")
 	}
-	if !contains(dot, "mod_c") {
+	if !strings.Contains(dot, "mod_c") {
 		t.Error("Expected 'mod_c' node in output")
 	}
 }
@@ -512,17 +513,4 @@ func TestValidateDependencies(t *testing.T) {
 	if !foundIncompat {
 		t.Error("Expected incompatibility result")
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
-}
-
-func containsHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

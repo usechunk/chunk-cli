@@ -273,9 +273,16 @@ func (vc *VersionConstraints) String() string {
 func (vc *VersionConstraints) Intersect(other *VersionConstraints) *VersionConstraints {
 	// Simple implementation: combine all constraints
 	// A more sophisticated implementation would simplify/optimize
+	var rawParts []string
+	if vc.Raw != "" {
+		rawParts = append(rawParts, vc.Raw)
+	}
+	if other.Raw != "" {
+		rawParts = append(rawParts, other.Raw)
+	}
 	combined := &VersionConstraints{
 		Constraints: append(vc.Constraints, other.Constraints...),
-		Raw:         vc.Raw + " " + other.Raw,
+		Raw:         strings.Join(rawParts, " "),
 	}
 	return combined
 }

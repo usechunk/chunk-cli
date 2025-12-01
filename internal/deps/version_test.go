@@ -77,6 +77,9 @@ func TestParseVersion(t *testing.T) {
 			if got.Build != tt.want.Build {
 				t.Errorf("ParseVersion() build = %v, want %v", got.Build, tt.want.Build)
 			}
+			if got.Raw != tt.want.Raw {
+				t.Errorf("ParseVersion() raw = %v, want %v", got.Raw, tt.want.Raw)
+			}
 		})
 	}
 }
