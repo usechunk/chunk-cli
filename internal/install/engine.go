@@ -150,7 +150,9 @@ func (i *Installer) Install(opts *Options) (*Result, error) {
 
 	// Clean up backup if successful
 	if i.backupDir != "" {
-		os.RemoveAll(i.backupDir)
+		if err := os.RemoveAll(i.backupDir); err != nil {
+			ui.PrintWarning(fmt.Sprintf("Failed to clean up backup: %v", err))
+		}
 	}
 
 	return &Result{
