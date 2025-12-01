@@ -13,7 +13,8 @@ type Version struct {
 	Patch      int
 	Prerelease string
 	Build      string
-	Raw        string
+	Original   string // Original input string before any normalization
+	Normalized string // Normalized version string (without 'v' prefix)
 }
 
 // ParseVersion parses a semver string into a Version struct.
@@ -25,10 +26,11 @@ func ParseVersion(s string) (*Version, error) {
 		}
 	}
 
+	original := s
 	// Remove leading 'v' if present
 	s = strings.TrimPrefix(s, "v")
 
-	v := &Version{Raw: s}
+	v := &Version{Original: original, Normalized: s}
 
 	// Extract build metadata
 	if idx := strings.Index(s, "+"); idx != -1 {
@@ -47,7 +49,7 @@ func ParseVersion(s string) (*Version, error) {
 	if len(parts) < 1 {
 		return nil, &ResolutionError{
 			Type:    ErrInvalidConstraint,
-			Message: "invalid version format: " + v.Raw,
+			Message: "invalid version format: " + v.Normalized,
 		}
 	}
 
@@ -85,7 +87,7 @@ func ParseVersion(s string) (*Version, error) {
 
 // String returns the string representation of the version.
 func (v *Version) String() string {
-	return v.Raw
+	return v.Normalized
 }
 
 // Compare compares two versions.
@@ -269,10 +271,25 @@ func (vc *VersionConstraints) String() string {
 }
 
 // Intersect returns the intersection of two constraint sets.
-// Returns nil if the constraints are incompatible.
+// Deduplicates constraints to avoid redundancy.
 func (vc *VersionConstraints) Intersect(other *VersionConstraints) *VersionConstraints {
-	// Simple implementation: combine all constraints
-	// A more sophisticated implementation would simplify/optimize
+	// Use a map to deduplicate constraints by their raw string
+	seen := make(map[string]bool)
+	var combined []*Constraint
+
+	for _, c := range vc.Constraints {
+		if !seen[c.Raw] {
+			seen[c.Raw] = true
+			combined = append(combined, c)
+		}
+	}
+	for _, c := range other.Constraints {
+		if !seen[c.Raw] {
+			seen[c.Raw] = true
+			combined = append(combined, c)
+		}
+	}
+
 	var rawParts []string
 	if vc.Raw != "" {
 		rawParts = append(rawParts, vc.Raw)
@@ -280,11 +297,11 @@ func (vc *VersionConstraints) Intersect(other *VersionConstraints) *VersionConst
 	if other.Raw != "" {
 		rawParts = append(rawParts, other.Raw)
 	}
-	combined := &VersionConstraints{
-		Constraints: append(vc.Constraints, other.Constraints...),
+
+	return &VersionConstraints{
+		Constraints: combined,
 		Raw:         strings.Join(rawParts, " "),
 	}
-	return combined
 }
 
 // IsCompatible checks if two constraint sets can be satisfied simultaneously.
@@ -297,6 +314,7 @@ func IsCompatible(c1, c2 *VersionConstraints) bool {
 	// Try to find at least one version that satisfies both
 	// Since we don't have the actual versions available, we do a basic check
 	var minVersion, maxVersion *Version
+	var minStrict, maxStrict bool // Track if bounds are strict (> or <)
 	hasMin, hasMax := false, false
 
 	for _, c := range combined.Constraints {
@@ -304,14 +322,30 @@ func IsCompatible(c1, c2 *VersionConstraints) bool {
 			continue
 		}
 		switch c.Op {
-		case ">=", ">":
-			if !hasMin || c.Version.Compare(minVersion) > 0 {
+		case ">":
+			if !hasMin || c.Version.Compare(minVersion) > 0 ||
+				(c.Version.Compare(minVersion) == 0 && !minStrict) {
 				minVersion = c.Version
+				minStrict = true
 				hasMin = true
 			}
-		case "<=", "<":
+		case ">=":
+			if !hasMin || c.Version.Compare(minVersion) > 0 {
+				minVersion = c.Version
+				minStrict = false
+				hasMin = true
+			}
+		case "<":
+			if !hasMax || c.Version.Compare(maxVersion) < 0 ||
+				(c.Version.Compare(maxVersion) == 0 && !maxStrict) {
+				maxVersion = c.Version
+				maxStrict = true
+				hasMax = true
+			}
+		case "<=":
 			if !hasMax || c.Version.Compare(maxVersion) < 0 {
 				maxVersion = c.Version
+				maxStrict = false
 				hasMax = true
 			}
 		case "=":
@@ -325,7 +359,16 @@ func IsCompatible(c1, c2 *VersionConstraints) bool {
 	}
 
 	if hasMin && hasMax {
-		return minVersion.Compare(maxVersion) <= 0
+		cmp := minVersion.Compare(maxVersion)
+		// If min > max, definitely incompatible
+		if cmp > 0 {
+			return false
+		}
+		// If min == max, only compatible if both bounds are inclusive
+		if cmp == 0 && (minStrict || maxStrict) {
+			return false
+		}
+		return true
 	}
 
 	return true

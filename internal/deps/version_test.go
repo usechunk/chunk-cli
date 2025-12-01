@@ -14,37 +14,37 @@ func TestParseVersion(t *testing.T) {
 		{
 			name:  "simple version",
 			input: "1.2.3",
-			want:  &Version{Major: 1, Minor: 2, Patch: 3, Raw: "1.2.3"},
+			want:  &Version{Major: 1, Minor: 2, Patch: 3, Original: "1.2.3", Normalized: "1.2.3"},
 		},
 		{
 			name:  "version with v prefix",
 			input: "v1.2.3",
-			want:  &Version{Major: 1, Minor: 2, Patch: 3, Raw: "1.2.3"},
+			want:  &Version{Major: 1, Minor: 2, Patch: 3, Original: "v1.2.3", Normalized: "1.2.3"},
 		},
 		{
 			name:  "version with prerelease",
 			input: "1.2.3-beta.1",
-			want:  &Version{Major: 1, Minor: 2, Patch: 3, Prerelease: "beta.1", Raw: "1.2.3-beta.1"},
+			want:  &Version{Major: 1, Minor: 2, Patch: 3, Prerelease: "beta.1", Original: "1.2.3-beta.1", Normalized: "1.2.3-beta.1"},
 		},
 		{
 			name:  "version with build metadata",
 			input: "1.2.3+build.123",
-			want:  &Version{Major: 1, Minor: 2, Patch: 3, Build: "build.123", Raw: "1.2.3+build.123"},
+			want:  &Version{Major: 1, Minor: 2, Patch: 3, Build: "build.123", Original: "1.2.3+build.123", Normalized: "1.2.3+build.123"},
 		},
 		{
 			name:  "version with prerelease and build",
 			input: "1.2.3-alpha+build",
-			want:  &Version{Major: 1, Minor: 2, Patch: 3, Prerelease: "alpha", Build: "build", Raw: "1.2.3-alpha+build"},
+			want:  &Version{Major: 1, Minor: 2, Patch: 3, Prerelease: "alpha", Build: "build", Original: "1.2.3-alpha+build", Normalized: "1.2.3-alpha+build"},
 		},
 		{
 			name:  "major only",
 			input: "1",
-			want:  &Version{Major: 1, Minor: 0, Patch: 0, Raw: "1"},
+			want:  &Version{Major: 1, Minor: 0, Patch: 0, Original: "1", Normalized: "1"},
 		},
 		{
 			name:  "major.minor only",
 			input: "1.2",
-			want:  &Version{Major: 1, Minor: 2, Patch: 0, Raw: "1.2"},
+			want:  &Version{Major: 1, Minor: 2, Patch: 0, Original: "1.2", Normalized: "1.2"},
 		},
 		{
 			name:    "empty string",
@@ -77,8 +77,11 @@ func TestParseVersion(t *testing.T) {
 			if got.Build != tt.want.Build {
 				t.Errorf("ParseVersion() build = %v, want %v", got.Build, tt.want.Build)
 			}
-			if got.Raw != tt.want.Raw {
-				t.Errorf("ParseVersion() raw = %v, want %v", got.Raw, tt.want.Raw)
+			if got.Original != tt.want.Original {
+				t.Errorf("ParseVersion() original = %v, want %v", got.Original, tt.want.Original)
+			}
+			if got.Normalized != tt.want.Normalized {
+				t.Errorf("ParseVersion() normalized = %v, want %v", got.Normalized, tt.want.Normalized)
 			}
 		})
 	}
@@ -146,8 +149,8 @@ func TestParseConstraint(t *testing.T) {
 			if got.Op != tt.wantOp {
 				t.Errorf("ParseConstraint() op = %v, want %v", got.Op, tt.wantOp)
 			}
-			if tt.wantVer != "" && got.Version.Raw != tt.wantVer {
-				t.Errorf("ParseConstraint() version = %v, want %v", got.Version.Raw, tt.wantVer)
+			if tt.wantVer != "" && got.Version.Normalized != tt.wantVer {
+				t.Errorf("ParseConstraint() version = %v, want %v", got.Version.Normalized, tt.wantVer)
 			}
 		})
 	}
@@ -278,6 +281,30 @@ func TestIsCompatible(t *testing.T) {
 			c1:   "=2.5.0",
 			c2:   ">=1.0.0 <2.0.0",
 			want: false,
+		},
+		{
+			name: "strict greater with strict less same version",
+			c1:   ">1.0.0",
+			c2:   "<1.0.0",
+			want: false,
+		},
+		{
+			name: "inclusive greater with strict less same version",
+			c1:   ">=1.0.0",
+			c2:   "<1.0.0",
+			want: false,
+		},
+		{
+			name: "strict greater with inclusive less same version",
+			c1:   ">1.0.0",
+			c2:   "<=1.0.0",
+			want: false,
+		},
+		{
+			name: "inclusive greater with inclusive less same version",
+			c1:   ">=1.0.0",
+			c2:   "<=1.0.0",
+			want: true,
 		},
 	}
 
