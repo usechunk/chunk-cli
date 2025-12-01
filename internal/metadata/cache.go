@@ -170,11 +170,15 @@ func sanitizeFilename(name string) string {
 
 // GetTTL returns the configured TTL.
 func (c *Cache) GetTTL() time.Duration {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return c.ttl
 }
 
 // SetTTL updates the TTL for future cache entries.
 func (c *Cache) SetTTL(ttl time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.ttl = ttl
