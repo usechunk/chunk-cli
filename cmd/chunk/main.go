@@ -41,6 +41,7 @@ func init() {
 	rootCmd.AddCommand(commands.SearchCmd)
 	rootCmd.AddCommand(commands.UpgradeCmd)
 	rootCmd.AddCommand(commands.DiffCmd)
+	rootCmd.AddCommand(commands.CheckCmd)
 }
 
 func main() {
