@@ -13,7 +13,7 @@ type SourceManager struct {
 
 func NewSourceManager() *SourceManager {
 	return &SourceManager{
-		chunkhub: GetAuthenticatedChunkHubClient(),
+		chunkhub: NewChunkHubClient(""),
 		github:   NewGitHubClient(),
 		modrinth: NewModrinthClient(),
 		local:    NewLocalClient(),

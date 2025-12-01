@@ -18,6 +18,7 @@ type Installer struct {
 	conversionEngine *converter.ConversionEngine
 	httpClient       *http.Client
 	backupDir        string
+	absDestDir       string
 }
 
 // NewInstaller creates a new Installer instance
@@ -46,6 +47,20 @@ type Result struct {
 	LoaderVersion string
 	ModsInstalled int
 	DestDir       string
+	ModpackInfo   *ModpackDisplayInfo
+}
+
+// ModpackDisplayInfo contains modpack details for display
+type ModpackDisplayInfo struct {
+	Name           string
+	Description    string
+	MCVersion      string
+	Loader         sources.LoaderType
+	LoaderVersion  string
+	Author         string
+	Source         string
+	ModCount       int
+	RecommendedRAM int
 }
 
 // Install performs the complete installation workflow
@@ -61,6 +76,9 @@ func (i *Installer) Install(opts *Options) (*Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve destination path: %w", err)
 	}
+
+	// Store absolute path for rollback
+	i.absDestDir = absDestDir
 
 	ui.PrintInfo(fmt.Sprintf("Installing to: %s", absDestDir))
 
@@ -79,8 +97,18 @@ func (i *Installer) Install(opts *Options) (*Result, error) {
 	}
 	spinner.Success(fmt.Sprintf("Found modpack: %s", modpack.Name))
 
-	// Display modpack info
-	i.displayModpackInfo(modpack)
+	// Build modpack display info for the command layer to display
+	modpackInfo := &ModpackDisplayInfo{
+		Name:           modpack.Name,
+		Description:    modpack.Description,
+		MCVersion:      modpack.MCVersion,
+		Loader:         modpack.Loader,
+		LoaderVersion:  modpack.LoaderVersion,
+		Author:         modpack.Author,
+		Source:         modpack.Source,
+		ModCount:       len(modpack.Mods),
+		RecommendedRAM: modpack.RecommendedRAM,
+	}
 
 	// Create backup if directory exists and has content
 	if err := i.createBackup(absDestDir); err != nil {
@@ -162,12 +190,19 @@ func (i *Installer) Install(opts *Options) (*Result, error) {
 		LoaderVersion: modpack.LoaderVersion,
 		ModsInstalled: modsInstalled,
 		DestDir:       absDestDir,
+		ModpackInfo:   modpackInfo,
 	}, nil
 }
 
 // Rollback restores the previous state after a failed installation
-func (i *Installer) Rollback(destDir string) error {
+func (i *Installer) Rollback() error {
 	if i.backupDir == "" {
+		return nil
+	}
+
+	// Use the stored absolute path to ensure correct rollback
+	destDir := i.absDestDir
+	if destDir == "" {
 		return nil
 	}
 
@@ -189,34 +224,6 @@ func (i *Installer) Rollback(destDir string) error {
 
 func (i *Installer) fetchModpack(identifier string) (*sources.Modpack, error) {
 	return i.sourceManager.Fetch(identifier)
-}
-
-func (i *Installer) displayModpackInfo(modpack *sources.Modpack) {
-	fmt.Println()
-	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	fmt.Printf("📦 %s\n", modpack.Name)
-	if modpack.Description != "" {
-		fmt.Printf("   %s\n", modpack.Description)
-	}
-	fmt.Println()
-	fmt.Printf("   Minecraft: %s\n", modpack.MCVersion)
-	fmt.Printf("   Loader:    %s", modpack.Loader)
-	if modpack.LoaderVersion != "" {
-		fmt.Printf(" %s", modpack.LoaderVersion)
-	}
-	fmt.Println()
-	if modpack.Author != "" {
-		fmt.Printf("   Author:    %s\n", modpack.Author)
-	}
-	fmt.Printf("   Source:    %s\n", modpack.Source)
-	if len(modpack.Mods) > 0 {
-		fmt.Printf("   Mods:      %d\n", len(modpack.Mods))
-	}
-	if modpack.RecommendedRAM > 0 {
-		fmt.Printf("   RAM:       %dGB recommended\n", modpack.RecommendedRAM)
-	}
-	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	fmt.Println()
 }
 
 func (i *Installer) createBackup(destDir string) error {

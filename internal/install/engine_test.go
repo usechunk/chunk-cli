@@ -170,6 +170,9 @@ func TestInstallerRollback(t *testing.T) {
 		t.Fatalf("Failed to create original file: %v", err)
 	}
 
+	// Set the absolute destination directory (simulating what Install does)
+	installer.absDestDir = originalDir
+
 	// Create backup
 	if err := installer.createBackup(originalDir); err != nil {
 		t.Fatalf("createBackup failed: %v", err)
@@ -190,7 +193,7 @@ func TestInstallerRollback(t *testing.T) {
 	}
 
 	// Rollback
-	err = installer.Rollback(originalDir)
+	err = installer.Rollback()
 	if err != nil {
 		t.Fatalf("Rollback failed: %v", err)
 	}
@@ -208,7 +211,7 @@ func TestInstallerRollbackNoBackup(t *testing.T) {
 	installer := NewInstaller()
 
 	// Rollback with no backup should succeed silently
-	err := installer.Rollback("/some/path")
+	err := installer.Rollback()
 	if err != nil {
 		t.Errorf("Rollback with no backup should not fail: %v", err)
 	}
