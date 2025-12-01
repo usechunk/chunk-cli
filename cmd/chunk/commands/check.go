@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,6 +41,12 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 	fmt.Println("🔍 Chunk Dependency Checker")
 	fmt.Println()
+
+	// Warn if non-default format is specified (not yet implemented)
+	if checkFormat != "text" && checkFormat != "" {
+		ui.PrintWarning(fmt.Sprintf("Output format '%s' is not yet implemented. Using 'text' format.", checkFormat))
+		fmt.Println()
+	}
 
 	// Determine what to check
 	var modpack string
@@ -119,16 +126,15 @@ func parseChunkManifest(path string) (*chunkManifestWithDeps, error) {
 		return nil, err
 	}
 
-	// Use manual JSON parsing to handle the dependency format
 	var manifest chunkManifestWithDeps
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, fmt.Errorf("invalid JSON in .chunk.json: %w", err)
+	}
 
-	// Simple JSON parsing - for full implementation would use json.Unmarshal
-	// with custom dependency parsing
-	_ = data // Placeholder - full implementation would parse JSON
-
-	// Return empty manifest for now - will be populated when .chunk.json format is finalized
-	manifest.Name = "local-modpack"
-	manifest.Dependencies = []*deps.Dependency{}
+	// Set defaults if name is empty
+	if manifest.Name == "" {
+		manifest.Name = "local-modpack"
+	}
 
 	return &manifest, nil
 }

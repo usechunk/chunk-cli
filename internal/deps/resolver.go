@@ -313,11 +313,21 @@ func (r *Resolver) ValidateDependencies(deps []*Dependency) ([]*ValidationResult
 			for i := 0; i < len(constraints); i++ {
 				c1, err := ParseVersionConstraints(constraints[i])
 				if err != nil {
+					results = append(results, &ValidationResult{
+						Type:    ValidationWarning,
+						ModID:   modID,
+						Message: fmt.Sprintf("invalid version constraint: %s", constraints[i]),
+					})
 					continue
 				}
 				for j := i + 1; j < len(constraints); j++ {
 					c2, err := ParseVersionConstraints(constraints[j])
 					if err != nil {
+						results = append(results, &ValidationResult{
+							Type:    ValidationWarning,
+							ModID:   modID,
+							Message: fmt.Sprintf("invalid version constraint: %s", constraints[j]),
+						})
 						continue
 					}
 					if !IsCompatible(c1, c2) {
