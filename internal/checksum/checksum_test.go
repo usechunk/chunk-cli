@@ -32,7 +32,7 @@ func TestCalculate(t *testing.T) {
 			name:           "binary-like data",
 			data:           "\x00\x01\x02\x03\x04\x05",
 			expectedSHA256: "17e88db187afd62c16e5debf3e6527cd006bc012bc90b51a810cd80c2d511f43",
-			expectedSHA512: "b46aa5f8a58c67c65dd2b33cf81ffd37b20bf41f4ec6c27e5b3e5e09d1f8f93e8de7f7b96c10ee29e6b2b8b37ee3db6f56de5a8a5e4a8e4e3c8f5c9a9d5f8f3e2",
+			expectedSHA512: "2f3831bccc94cf061bcfa5f8c23c1429d26e3bc6b76edad93d9025cb91c903af6cf9c935dc37193c04c2c66e7d9de17c358284418218afea2160147aaa912f4c",
 		},
 	}
 
@@ -47,8 +47,7 @@ func TestCalculate(t *testing.T) {
 			if checksums.SHA256 != tt.expectedSHA256 {
 				t.Errorf("SHA256 = %v, want %v", checksums.SHA256, tt.expectedSHA256)
 			}
-			// Only check SHA512 for cases where we know the expected value
-			if tt.name != "binary-like data" && checksums.SHA512 != tt.expectedSHA512 {
+			if checksums.SHA512 != tt.expectedSHA512 {
 				t.Errorf("SHA512 = %v, want %v", checksums.SHA512, tt.expectedSHA512)
 			}
 		})

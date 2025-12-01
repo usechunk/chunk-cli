@@ -13,8 +13,10 @@ import (
 func TestModManager_DownloadModWithChecksum(t *testing.T) {
 	// Create a test server that serves a file
 	testContent := []byte("test mod content for checksum verification")
-	// SHA256 of "test mod content for checksum verification"
-	expectedSHA256 := "7b5f8c1c4a2c4e5f3e1b2a8c9d0e1f2a3b4c5d6e7f8091a2b3c4d5e6f7a8b9c0d"
+	// Correct SHA256 of "test mod content for checksum verification"
+	correctSHA256 := "541c932013bf9f85f22ee8e198d5d51fa7c2a031c25e54e7ba423b16ffed2c86"
+	// Wrong checksum for testing mismatch
+	wrongSHA256 := "0000000000000000000000000000000000000000000000000000000000000000"
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write(testContent)
@@ -44,12 +46,23 @@ func TestModManager_DownloadModWithChecksum(t *testing.T) {
 			wantErr:    false,
 		},
 		{
+			name: "download with valid checksum",
+			mod: &sources.Mod{
+				Name:        "TestMod",
+				FileName:    "testmod-valid.jar",
+				DownloadURL: server.URL + "/mod.jar",
+				SHA256:      correctSHA256,
+			},
+			skipVerify: false,
+			wantErr:    false,
+		},
+		{
 			name: "download with skip-verify",
 			mod: &sources.Mod{
 				Name:        "TestMod",
 				FileName:    "testmod-skip.jar",
 				DownloadURL: server.URL + "/mod.jar",
-				SHA256:      "wrongchecksum",
+				SHA256:      wrongSHA256,
 			},
 			skipVerify: true,
 			wantErr:    false,
@@ -60,10 +73,10 @@ func TestModManager_DownloadModWithChecksum(t *testing.T) {
 				Name:        "TestMod",
 				FileName:    "testmod-invalid.jar",
 				DownloadURL: server.URL + "/mod.jar",
-				SHA256:      expectedSHA256,
+				SHA256:      wrongSHA256,
 			},
 			skipVerify: false,
-			wantErr:    true, // Will fail because the checksum won't match
+			wantErr:    true,
 		},
 	}
 

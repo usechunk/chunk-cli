@@ -154,8 +154,7 @@ func (m *ModManager) downloadMod(mod *sources.Mod, destDir string) error {
 	}
 
 	if _, err := io.Copy(out, reader); err != nil {
-		// Clean up partial file on error
-		out.Close()
+		// Clean up partial file on error (defer will handle closing)
 		os.Remove(destPath)
 		return fmt.Errorf("failed to write file: %w", err)
 	}
@@ -163,8 +162,7 @@ func (m *ModManager) downloadMod(mod *sources.Mod, destDir string) error {
 	// Complete checksum verification if it was set up
 	if verifyResult != nil {
 		if err := verifyResult.Verify(destPath); err != nil {
-			// Remove file with bad checksum
-			out.Close()
+			// Remove file with bad checksum (defer will handle closing)
 			os.Remove(destPath)
 			return fmt.Errorf("checksum verification failed for %s: %w", mod.FileName, err)
 		}
