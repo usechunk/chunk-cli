@@ -43,16 +43,22 @@ func runInstall(cmd *cobra.Command, args []string) error {
 
 	installer := install.NewInstaller()
 
+	// Normalize destination directory
+	destDir := installDir
+	if destDir == "" {
+		destDir = "./server"
+	}
+
 	opts := &install.Options{
 		Identifier:   modpack,
-		DestDir:      installDir,
+		DestDir:      destDir,
 		PreserveData: false,
 	}
 
 	result, err := installer.Install(opts)
 	if err != nil {
 		// Attempt rollback on failure
-		if rollbackErr := installer.Rollback(opts.DestDir); rollbackErr != nil {
+		if rollbackErr := installer.Rollback(destDir); rollbackErr != nil {
 			ui.PrintError(fmt.Sprintf("Rollback failed: %v", rollbackErr))
 		}
 		ui.PrintError(fmt.Sprintf("Installation failed: %v", err))

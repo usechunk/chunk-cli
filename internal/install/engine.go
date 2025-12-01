@@ -2,7 +2,6 @@ package install
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -73,7 +72,7 @@ func (i *Installer) Install(opts *Options) (*Result, error) {
 	spinner := ui.NewSpinner("Fetching modpack information...")
 	spinner.Start()
 
-	modpack, err := i.fetchModpack(opts.Identifier, sourceType)
+	modpack, err := i.fetchModpack(opts.Identifier)
 	if err != nil {
 		spinner.Error(fmt.Sprintf("Failed to fetch modpack: %v", err))
 		return nil, fmt.Errorf("failed to fetch modpack: %w", err)
@@ -186,7 +185,7 @@ func (i *Installer) Rollback(destDir string) error {
 	return nil
 }
 
-func (i *Installer) fetchModpack(identifier string, sourceType string) (*sources.Modpack, error) {
+func (i *Installer) fetchModpack(identifier string) (*sources.Modpack, error) {
 	return i.sourceManager.Fetch(identifier)
 }
 
@@ -313,26 +312,4 @@ func (i *Installer) generateScripts(modpack *sources.Modpack, destDir string) er
 
 	scriptGen := converter.NewScriptGenerator()
 	return scriptGen.Generate(opts)
-}
-
-// DownloadFile downloads a file from a URL to a destination
-func (i *Installer) DownloadFile(url, destPath string) error {
-	resp, err := i.httpClient.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download failed: status %d", resp.StatusCode)
-	}
-
-	out, err := os.Create(destPath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	return err
 }
