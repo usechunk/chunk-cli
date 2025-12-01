@@ -28,7 +28,7 @@ func (s *SmokeTest) RunAll(serverDir string) *TestReport {
 	report := &TestReport{
 		Results: []TestResult{},
 	}
-	
+
 	tests := []func(string) TestResult{
 		s.testServerJarExists,
 		s.testModsDirectoryExists,
@@ -40,7 +40,7 @@ func (s *SmokeTest) RunAll(serverDir string) *TestReport {
 		s.testChunkManifestExists,
 		s.testDirectoryWriteable,
 	}
-	
+
 	for _, test := range tests {
 		result := test(serverDir)
 		report.Results = append(report.Results, result)
@@ -50,7 +50,7 @@ func (s *SmokeTest) RunAll(serverDir string) *TestReport {
 			report.Failed++
 		}
 	}
-	
+
 	return report
 }
 
@@ -62,7 +62,7 @@ func (s *SmokeTest) testServerJarExists(serverDir string) TestResult {
 		"fabric-server-launch.jar",
 		"neoforge-*.jar",
 	}
-	
+
 	for _, pattern := range patterns {
 		matches, _ := filepath.Glob(filepath.Join(serverDir, pattern))
 		if len(matches) > 0 {
@@ -73,7 +73,7 @@ func (s *SmokeTest) testServerJarExists(serverDir string) TestResult {
 			}
 		}
 	}
-	
+
 	return TestResult{
 		Name:    "Server JAR",
 		Passed:  false,
@@ -97,7 +97,7 @@ func (s *SmokeTest) testModsDirectoryExists(serverDir string) TestResult {
 			Message: fmt.Sprintf("%d mod(s) installed", modCount),
 		}
 	}
-	
+
 	return TestResult{
 		Name:    "Mods Directory",
 		Passed:  false,
@@ -114,7 +114,7 @@ func (s *SmokeTest) testConfigDirectoryExists(serverDir string) TestResult {
 			Message: "Config directory exists",
 		}
 	}
-	
+
 	return TestResult{
 		Name:    "Config Directory",
 		Passed:  true,
@@ -124,7 +124,7 @@ func (s *SmokeTest) testConfigDirectoryExists(serverDir string) TestResult {
 
 func (s *SmokeTest) testStartScriptExists(serverDir string) TestResult {
 	scripts := []string{"start.sh", "start.bat", "start.command"}
-	
+
 	for _, script := range scripts {
 		scriptPath := filepath.Join(serverDir, script)
 		if _, err := os.Stat(scriptPath); err == nil {
@@ -135,7 +135,7 @@ func (s *SmokeTest) testStartScriptExists(serverDir string) TestResult {
 			}
 		}
 	}
-	
+
 	return TestResult{
 		Name:    "Start Script",
 		Passed:  false,
@@ -145,7 +145,7 @@ func (s *SmokeTest) testStartScriptExists(serverDir string) TestResult {
 
 func (s *SmokeTest) testStartScriptExecutable(serverDir string) TestResult {
 	scriptPath := filepath.Join(serverDir, "start.sh")
-	
+
 	info, err := os.Stat(scriptPath)
 	if err != nil {
 		return TestResult{
@@ -154,7 +154,7 @@ func (s *SmokeTest) testStartScriptExecutable(serverDir string) TestResult {
 			Message: "Skipped (script not found)",
 		}
 	}
-	
+
 	if info.Mode()&0111 != 0 {
 		return TestResult{
 			Name:    "Script Permissions",
@@ -162,7 +162,7 @@ func (s *SmokeTest) testStartScriptExecutable(serverDir string) TestResult {
 			Message: "Start script is executable",
 		}
 	}
-	
+
 	return TestResult{
 		Name:    "Script Permissions",
 		Passed:  false,
@@ -172,7 +172,7 @@ func (s *SmokeTest) testStartScriptExecutable(serverDir string) TestResult {
 
 func (s *SmokeTest) testServerPropertiesExists(serverDir string) TestResult {
 	propsPath := filepath.Join(serverDir, "server.properties")
-	
+
 	if _, err := os.Stat(propsPath); err == nil {
 		return TestResult{
 			Name:    "Server Properties",
@@ -180,7 +180,7 @@ func (s *SmokeTest) testServerPropertiesExists(serverDir string) TestResult {
 			Message: "server.properties exists",
 		}
 	}
-	
+
 	return TestResult{
 		Name:    "Server Properties",
 		Passed:  true,
@@ -190,7 +190,7 @@ func (s *SmokeTest) testServerPropertiesExists(serverDir string) TestResult {
 
 func (s *SmokeTest) testEulaExists(serverDir string) TestResult {
 	eulaPath := filepath.Join(serverDir, "eula.txt")
-	
+
 	if _, err := os.Stat(eulaPath); err == nil {
 		data, err := os.ReadFile(eulaPath)
 		if err == nil && len(data) > 0 {
@@ -201,7 +201,7 @@ func (s *SmokeTest) testEulaExists(serverDir string) TestResult {
 			}
 		}
 	}
-	
+
 	return TestResult{
 		Name:    "EULA",
 		Passed:  true,
@@ -211,7 +211,7 @@ func (s *SmokeTest) testEulaExists(serverDir string) TestResult {
 
 func (s *SmokeTest) testChunkManifestExists(serverDir string) TestResult {
 	manifestPath := filepath.Join(serverDir, ".chunk.json")
-	
+
 	if _, err := os.Stat(manifestPath); err == nil {
 		return TestResult{
 			Name:    "Chunk Manifest",
@@ -219,7 +219,7 @@ func (s *SmokeTest) testChunkManifestExists(serverDir string) TestResult {
 			Message: ".chunk.json exists",
 		}
 	}
-	
+
 	return TestResult{
 		Name:    "Chunk Manifest",
 		Passed:  false,
@@ -229,7 +229,7 @@ func (s *SmokeTest) testChunkManifestExists(serverDir string) TestResult {
 
 func (s *SmokeTest) testDirectoryWriteable(serverDir string) TestResult {
 	testFile := filepath.Join(serverDir, ".chunk-write-test")
-	
+
 	err := os.WriteFile(testFile, []byte("test"), 0644)
 	if err != nil {
 		return TestResult{
@@ -238,9 +238,9 @@ func (s *SmokeTest) testDirectoryWriteable(serverDir string) TestResult {
 			Message: fmt.Sprintf("Directory not writeable: %v", err),
 		}
 	}
-	
+
 	os.Remove(testFile)
-	
+
 	return TestResult{
 		Name:    "Directory Permissions",
 		Passed:  true,
@@ -251,7 +251,7 @@ func (s *SmokeTest) testDirectoryWriteable(serverDir string) TestResult {
 func (s *SmokeTest) PrintReport(report *TestReport) {
 	fmt.Printf("\n🔍 Smoke Test Report\n")
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	
+
 	for _, result := range report.Results {
 		icon := "✓"
 		if !result.Passed {
@@ -259,10 +259,10 @@ func (s *SmokeTest) PrintReport(report *TestReport) {
 		}
 		fmt.Printf("%s %-25s %s\n", icon, result.Name+":", result.Message)
 	}
-	
+
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Printf("Results: %d passed, %d failed\n\n", report.Passed, report.Failed)
-	
+
 	if report.Failed == 0 {
 		fmt.Println("✅ All smoke tests passed! Server is ready to start.")
 	} else {

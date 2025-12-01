@@ -35,12 +35,12 @@ func (g *GitHubClient) Fetch(identifier string) (*Modpack, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	chunkJSON, err := g.fetchChunkJSON(owner, repo)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	modpack := &Modpack{
 		Name:           chunkJSON.Name,
 		Identifier:     identifier,
@@ -53,24 +53,24 @@ func (g *GitHubClient) Fetch(identifier string) (*Modpack, error) {
 		RecommendedRAM: chunkJSON.RecommendedRAMGB,
 		Dependencies:   chunkJSON.Dependencies,
 	}
-	
+
 	return modpack, nil
 }
 
 func (g *GitHubClient) Search(query string) ([]*ModpackSearchResult, error) {
-	searchURL := fmt.Sprintf("%s/search/repositories?q=%s+.chunk.json+in:repo", 
+	searchURL := fmt.Sprintf("%s/search/repositories?q=%s+.chunk.json+in:repo",
 		GitHubAPIURL, url.QueryEscape(query))
-	
+
 	resp, err := g.get(searchURL)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("github api error: status %d", resp.StatusCode)
 	}
-	
+
 	var result struct {
 		Items []struct {
 			FullName    string `json:"full_name"`
@@ -80,20 +80,20 @@ func (g *GitHubClient) Search(query string) ([]*ModpackSearchResult, error) {
 			} `json:"owner"`
 		} `json:"items"`
 	}
-	
+
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}
-	
+
 	var results []*ModpackSearchResult
 	for _, item := range result.Items {
 		owner, repo, _ := parseGitHubIdentifier(item.FullName)
-		
+
 		chunkJSON, err := g.fetchChunkJSON(owner, repo)
 		if err != nil {
 			continue
 		}
-		
+
 		results = append(results, &ModpackSearchResult{
 			Name:        chunkJSON.Name,
 			Identifier:  item.FullName,
@@ -103,7 +103,7 @@ func (g *GitHubClient) Search(query string) ([]*ModpackSearchResult, error) {
 			Source:      "github",
 		})
 	}
-	
+
 	return results, nil
 }
 
@@ -112,101 +112,101 @@ func (g *GitHubClient) GetVersions(identifier string) ([]*Version, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	tagsURL := fmt.Sprintf("%s/repos/%s/%s/tags", GitHubAPIURL, owner, repo)
-	
+
 	resp, err := g.get(tagsURL)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("github api error: status %d", resp.StatusCode)
 	}
-	
+
 	var tags []struct {
 		Name   string `json:"name"`
 		Commit struct {
 			SHA string `json:"sha"`
 		} `json:"commit"`
 	}
-	
+
 	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
 		return nil, err
 	}
-	
+
 	var versions []*Version
 	for _, tag := range tags {
 		versions = append(versions, &Version{
-			Version:  tag.Name,
-			IsStable: !strings.Contains(strings.ToLower(tag.Name), "beta") && 
-			          !strings.Contains(strings.ToLower(tag.Name), "alpha"),
+			Version: tag.Name,
+			IsStable: !strings.Contains(strings.ToLower(tag.Name), "beta") &&
+				!strings.Contains(strings.ToLower(tag.Name), "alpha"),
 		})
 	}
-	
+
 	return versions, nil
 }
 
 func (g *GitHubClient) fetchChunkJSON(owner, repo string) (*ChunkManifest, error) {
-	contentURL := fmt.Sprintf("%s/repos/%s/%s/contents/.chunk.json", 
+	contentURL := fmt.Sprintf("%s/repos/%s/%s/contents/.chunk.json",
 		GitHubAPIURL, owner, repo)
-	
+
 	resp, err := g.get(contentURL)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("no .chunk.json found in repository")
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("github api error: status %d", resp.StatusCode)
 	}
-	
+
 	var content struct {
 		Content  string `json:"content"`
 		Encoding string `json:"encoding"`
 	}
-	
+
 	if err := json.NewDecoder(resp.Body).Decode(&content); err != nil {
 		return nil, err
 	}
-	
+
 	if content.Encoding != "base64" {
 		return nil, fmt.Errorf("unexpected encoding: %s", content.Encoding)
 	}
-	
+
 	decoded, err := decodeBase64(content.Content)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var manifest ChunkManifest
 	if err := json.Unmarshal([]byte(decoded), &manifest); err != nil {
 		return nil, fmt.Errorf("invalid .chunk.json: %w", err)
 	}
-	
+
 	return &manifest, nil
 }
 
 func (g *GitHubClient) get(endpoint string) (*http.Response, error) {
 	GetGitHubRateLimiter().Wait()
-	
+
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	req.Header.Set("User-Agent", "chunk-cli/0.1.0")
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	
+
 	if g.token != "" {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", g.token))
 	}
-	
+
 	return g.httpClient.Do(req)
 }
 
@@ -230,22 +230,22 @@ func decodeBase64(encoded string) (string, error) {
 
 func base64Decode(src string, dst []byte) (int, error) {
 	const base64Table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-	
+
 	si := 0
 	di := 0
-	
+
 	for si < len(src) {
 		var dbuf [4]byte
 		dlen := 0
-		
+
 		for dlen < 4 && si < len(src) {
 			c := src[si]
 			si++
-			
+
 			if c == '=' {
 				break
 			}
-			
+
 			if c >= 'A' && c <= 'Z' {
 				dbuf[dlen] = c - 'A'
 			} else if c >= 'a' && c <= 'z' {
@@ -261,7 +261,7 @@ func base64Decode(src string, dst []byte) (int, error) {
 			}
 			dlen++
 		}
-		
+
 		if dlen >= 2 {
 			dst[di] = (dbuf[0] << 2) | (dbuf[1] >> 4)
 			di++
@@ -275,7 +275,7 @@ func base64Decode(src string, dst []byte) (int, error) {
 			di++
 		}
 	}
-	
+
 	return di, nil
 }
 

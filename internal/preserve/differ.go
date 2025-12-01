@@ -61,7 +61,7 @@ func (d *VersionDiffer) CompareLoaders(fromType, fromVersion, toType, toVersion 
 	if fromType == toType && fromVersion == toVersion {
 		return nil
 	}
-	
+
 	return &LoaderChange{
 		TypeFrom:    fromType,
 		TypeTo:      toType,
@@ -74,7 +74,7 @@ func (d *VersionDiffer) CompareModpacks(oldManifest, newManifest *config.ChunkMa
 	diff := &ModpackDiff{
 		Recommendations: []string{},
 	}
-	
+
 	diff.MCVersionChange = d.CompareMCVersions(oldManifest.MCVersion, newManifest.MCVersion)
 	diff.LoaderChange = d.CompareLoaders(
 		oldManifest.Loader,
@@ -82,7 +82,7 @@ func (d *VersionDiffer) CompareModpacks(oldManifest, newManifest *config.ChunkMa
 		newManifest.Loader,
 		newManifest.LoaderVersion,
 	)
-	
+
 	oldMods := make(map[string]ModInfo)
 	// TODO: Implement mod comparison once ChunkManifest has Mods field
 	// for _, mod := range oldManifest.Mods {
@@ -92,7 +92,7 @@ func (d *VersionDiffer) CompareModpacks(oldManifest, newManifest *config.ChunkMa
 	// 		ID:      mod.ID,
 	// 	}
 	// }
-	
+
 	newMods := make(map[string]ModInfo)
 	// TODO: Implement mod comparison once ChunkManifest has Mods field
 	// for _, mod := range newManifest.Mods {
@@ -102,7 +102,7 @@ func (d *VersionDiffer) CompareModpacks(oldManifest, newManifest *config.ChunkMa
 	// 		ID:      mod.ID,
 	// 	}
 	// }
-	
+
 	for id, newMod := range newMods {
 		if oldMod, exists := oldMods[id]; exists {
 			if oldMod.Version != newMod.Version {
@@ -124,30 +124,30 @@ func (d *VersionDiffer) CompareModpacks(oldManifest, newManifest *config.ChunkMa
 			diff.ModsAdded = append(diff.ModsAdded, newMod)
 		}
 	}
-	
+
 	for id, oldMod := range oldMods {
 		if _, exists := newMods[id]; !exists {
 			diff.ModsRemoved = append(diff.ModsRemoved, oldMod)
 		}
 	}
-	
+
 	d.generateRecommendations(diff)
-	
+
 	return diff
 }
 
 func (d *VersionDiffer) isBreakingModUpdate(from, to string) bool {
 	fromParts := strings.Split(from, ".")
 	toParts := strings.Split(to, ".")
-	
+
 	if len(fromParts) < 2 || len(toParts) < 2 {
 		return true
 	}
-	
+
 	if fromParts[0] != toParts[0] {
 		return true
 	}
-	
+
 	return false
 }
 
@@ -158,23 +158,23 @@ func (d *VersionDiffer) generateRecommendations(diff *ModpackDiff) {
 				"⚠️  Major Minecraft version change detected. World backup is strongly recommended.")
 		}
 	}
-	
+
 	if diff.LoaderChange != nil && diff.LoaderChange.TypeFrom != diff.LoaderChange.TypeTo {
 		diff.Recommendations = append(diff.Recommendations,
 			"⚠️  Mod loader type is changing. This requires a fresh installation and may not be compatible with existing worlds.")
 		diff.HasBreakingChanges = true
 	}
-	
+
 	if len(diff.ModsRemoved) > 0 {
 		diff.Recommendations = append(diff.Recommendations,
 			fmt.Sprintf("ℹ️  %d mod(s) will be removed. Ensure they are not critical to your world.", len(diff.ModsRemoved)))
 	}
-	
+
 	if diff.HasBreakingChanges {
 		diff.Recommendations = append(diff.Recommendations,
 			"⚠️  Breaking changes detected. Test in a backup world first.")
 	}
-	
+
 	if len(diff.ModsAdded) > 10 {
 		diff.Recommendations = append(diff.Recommendations,
 			"ℹ️  Many new mods are being added. First launch may take longer than usual.")
@@ -184,23 +184,23 @@ func (d *VersionDiffer) generateRecommendations(diff *ModpackDiff) {
 func (d *VersionDiffer) isMajorMCVersionChange(from, to string) bool {
 	fromParts := strings.Split(from, ".")
 	toParts := strings.Split(to, ".")
-	
+
 	if len(fromParts) < 2 || len(toParts) < 2 {
 		return true
 	}
-	
+
 	return fromParts[0] != toParts[0] || fromParts[1] != toParts[1]
 }
 
 func (d *VersionDiffer) PrintDiff(diff *ModpackDiff) {
 	fmt.Println("\n📊 Modpack Difference Report")
 	fmt.Println(strings.Repeat("=", 50))
-	
+
 	if diff.MCVersionChange != nil {
 		fmt.Printf("\n🎮 Minecraft Version:\n")
 		fmt.Printf("   %s → %s\n", diff.MCVersionChange.From, diff.MCVersionChange.To)
 	}
-	
+
 	if diff.LoaderChange != nil {
 		fmt.Printf("\n🔧 Mod Loader:\n")
 		if diff.LoaderChange.TypeFrom != diff.LoaderChange.TypeTo {
@@ -210,21 +210,21 @@ func (d *VersionDiffer) PrintDiff(diff *ModpackDiff) {
 			fmt.Printf("   Version: %s → %s\n", diff.LoaderChange.VersionFrom, diff.LoaderChange.VersionTo)
 		}
 	}
-	
+
 	if len(diff.ModsAdded) > 0 {
 		fmt.Printf("\n➕ Added Mods (%d):\n", len(diff.ModsAdded))
 		for _, mod := range diff.ModsAdded {
 			fmt.Printf("   + %s (%s)\n", mod.Name, mod.Version)
 		}
 	}
-	
+
 	if len(diff.ModsRemoved) > 0 {
 		fmt.Printf("\n➖ Removed Mods (%d):\n", len(diff.ModsRemoved))
 		for _, mod := range diff.ModsRemoved {
 			fmt.Printf("   - %s (%s)\n", mod.Name, mod.Version)
 		}
 	}
-	
+
 	if len(diff.ModsUpdated) > 0 {
 		fmt.Printf("\n🔄 Updated Mods (%d):\n", len(diff.ModsUpdated))
 		for _, mod := range diff.ModsUpdated {
@@ -235,18 +235,18 @@ func (d *VersionDiffer) PrintDiff(diff *ModpackDiff) {
 			fmt.Printf("   %s %s: %s → %s\n", icon, mod.Name, mod.VersionFrom, mod.VersionTo)
 		}
 	}
-	
+
 	if len(diff.ModsUnchanged) > 0 {
 		fmt.Printf("\n✓ Unchanged Mods: %d\n", len(diff.ModsUnchanged))
 	}
-	
+
 	if len(diff.Recommendations) > 0 {
 		fmt.Printf("\n💡 Recommendations:\n")
 		for _, rec := range diff.Recommendations {
 			fmt.Printf("   %s\n", rec)
 		}
 	}
-	
+
 	fmt.Println(strings.Repeat("=", 50))
 }
 
@@ -267,12 +267,12 @@ func (d *VersionDiffer) GetKnownWorkingVersions(loader, mcVersion string) []stri
 			"1.20.4": {"20.4.237", "20.4.200"},
 		},
 	}
-	
+
 	if loaderVersions, ok := knownVersions[strings.ToLower(loader)]; ok {
 		if versions, ok := loaderVersions[mcVersion]; ok {
 			return versions
 		}
 	}
-	
+
 	return []string{}
 }

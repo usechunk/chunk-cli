@@ -21,9 +21,9 @@ func (l *LocalClient) Fetch(identifier string) (*Modpack, error) {
 	if !fileExists(identifier) {
 		return nil, fmt.Errorf("file not found: %s", identifier)
 	}
-	
+
 	ext := strings.ToLower(filepath.Ext(identifier))
-	
+
 	switch ext {
 	case ".mrpack":
 		return l.mrpackParser.Parse(identifier)
@@ -47,7 +47,7 @@ func (l *LocalClient) parseZip(filePath string) (*Modpack, error) {
 	if err == nil {
 		return modpack, nil
 	}
-	
+
 	return &Modpack{
 		Name:       filepath.Base(filePath),
 		Identifier: filePath,
@@ -57,7 +57,7 @@ func (l *LocalClient) parseZip(filePath string) (*Modpack, error) {
 
 func (l *LocalClient) Extract(filePath, destDir string) error {
 	ext := strings.ToLower(filepath.Ext(filePath))
-	
+
 	switch ext {
 	case ".mrpack", ".zip":
 		return l.mrpackParser.Extract(filePath, destDir)

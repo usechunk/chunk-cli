@@ -22,7 +22,7 @@ func NewSourceManager() *SourceManager {
 
 func (s *SourceManager) Fetch(identifier string) (*Modpack, error) {
 	sourceType := DetectSource(identifier)
-	
+
 	switch sourceType {
 	case "chunkhub":
 		return s.chunkhub.Fetch(identifier)
@@ -39,32 +39,32 @@ func (s *SourceManager) Fetch(identifier string) (*Modpack, error) {
 
 func (s *SourceManager) Search(query string) ([]*ModpackSearchResult, error) {
 	var allResults []*ModpackSearchResult
-	
+
 	chunkHubResults, err := s.chunkhub.Search(query)
 	if err == nil {
 		allResults = append(allResults, chunkHubResults...)
 	}
-	
+
 	modrinthResults, err := s.modrinth.Search(query)
 	if err == nil {
 		allResults = append(allResults, modrinthResults...)
 	}
-	
+
 	githubResults, err := s.github.Search(query)
 	if err == nil {
 		allResults = append(allResults, githubResults...)
 	}
-	
+
 	if len(allResults) == 0 {
 		return nil, fmt.Errorf("no results found for query: %s", query)
 	}
-	
+
 	return allResults, nil
 }
 
 func (s *SourceManager) GetVersions(identifier string) ([]*Version, error) {
 	sourceType := DetectSource(identifier)
-	
+
 	switch sourceType {
 	case "chunkhub":
 		return s.chunkhub.GetVersions(identifier)
