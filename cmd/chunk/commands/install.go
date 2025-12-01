@@ -2,7 +2,10 @@ package commands
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/alexinslc/chunk/internal/install"
+	"github.com/alexinslc/chunk/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -28,20 +31,107 @@ The command will:
   - Generate server configurations
   - Create start scripts`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		modpack := args[0]
-		fmt.Printf("Installing modpack: %s\n", modpack)
-		
-		if installDir != "" {
-			fmt.Printf("Installation directory: %s\n", installDir)
-		} else {
-			fmt.Printf("Installation directory: ./server\n")
+	RunE: runInstall,
+}
+
+func runInstall(cmd *cobra.Command, args []string) error {
+	modpack := args[0]
+
+	fmt.Println()
+	fmt.Println("🚀 Chunk Modpack Installer")
+	fmt.Println()
+
+	installer := install.NewInstaller()
+
+	// Normalize destination directory
+	destDir := installDir
+	if destDir == "" {
+		destDir = "./server"
+	}
+
+	opts := &install.Options{
+		Identifier:   modpack,
+		DestDir:      destDir,
+		PreserveData: false,
+	}
+
+	result, err := installer.Install(opts)
+	if err != nil {
+		// Attempt rollback on failure
+		if rollbackErr := installer.Rollback(); rollbackErr != nil {
+			ui.PrintError(fmt.Sprintf("Rollback failed: %v", rollbackErr))
 		}
-		
-		fmt.Println("⚠️  Install functionality not yet implemented")
-	},
+		ui.PrintError(fmt.Sprintf("Installation failed: %v", err))
+		return err
+	}
+
+	// Display modpack info
+	displayModpackInfo(result.ModpackInfo)
+
+	// Print success summary
+	fmt.Println()
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Println("✅ Installation Complete!")
+	fmt.Println()
+	fmt.Printf("   Modpack:   %s\n", result.ModpackName)
+	fmt.Printf("   Minecraft: %s\n", result.MCVersion)
+	fmt.Printf("   Loader:    %s", result.Loader)
+	if result.LoaderVersion != "" {
+		fmt.Printf(" %s", result.LoaderVersion)
+	}
+	fmt.Println()
+	fmt.Printf("   Mods:      %d installed\n", result.ModsInstalled)
+	fmt.Printf("   Location:  %s\n", result.DestDir)
+	fmt.Println()
+	fmt.Println("To start the server:")
+	fmt.Printf("   cd %s\n", result.DestDir)
+	fmt.Println("   ./start.sh (Linux/Mac) or start.bat (Windows)")
+	fmt.Println()
+	fmt.Println("NOTE: Review and accept eula.txt before starting!")
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Println()
+
+	return nil
+}
+
+func displayModpackInfo(info *install.ModpackDisplayInfo) {
+	if info == nil {
+		return
+	}
+	fmt.Println()
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Printf("📦 %s\n", info.Name)
+	if info.Description != "" {
+		fmt.Printf("   %s\n", info.Description)
+	}
+	fmt.Println()
+	fmt.Printf("   Minecraft: %s\n", info.MCVersion)
+	fmt.Printf("   Loader:    %s", info.Loader)
+	if info.LoaderVersion != "" {
+		fmt.Printf(" %s", info.LoaderVersion)
+	}
+	fmt.Println()
+	if info.Author != "" {
+		fmt.Printf("   Author:    %s\n", info.Author)
+	}
+	fmt.Printf("   Source:    %s\n", info.Source)
+	if info.ModCount > 0 {
+		fmt.Printf("   Mods:      %d\n", info.ModCount)
+	}
+	if info.RecommendedRAM > 0 {
+		fmt.Printf("   RAM:       %dGB recommended\n", info.RecommendedRAM)
+	}
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 }
 
 func init() {
 	InstallCmd.Flags().StringVarP(&installDir, "dir", "d", "", "Installation directory (default: ./server)")
+
+	// Suppress usage printing on errors
+	InstallCmd.SilenceUsage = true
+	InstallCmd.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
+		fmt.Fprintf(os.Stderr, "Error: %v\n\n", err)
+		cmd.Usage()
+		return err
+	})
 }

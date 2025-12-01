@@ -59,14 +59,14 @@ func (p *ProgressBar) Render() {
 
 	elapsed := time.Since(p.startTime)
 	speed := float64(p.current) / elapsed.Seconds()
-	
+
 	var eta string
 	if speed > 0 && p.current < p.total {
 		remaining := float64(p.total-p.current) / speed
 		eta = fmt.Sprintf(" ETA: %s", time.Duration(remaining)*time.Second)
 	}
 
-	fmt.Fprintf(p.writer, "\r%s: [%s] %.1f%%%s", 
+	fmt.Fprintf(p.writer, "\r%s: [%s] %.1f%%%s",
 		p.description, bar, percent*100, eta)
 }
 
@@ -94,7 +94,7 @@ func (s *Spinner) Start() {
 	go func() {
 		ticker := time.NewTicker(100 * time.Millisecond)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-s.stop:

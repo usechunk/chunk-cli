@@ -21,7 +21,7 @@ type ValidationError struct {
 
 func (f *FileValidator) ValidateServerStructure(serverDir string) []ValidationError {
 	var errors []ValidationError
-	
+
 	requiredDirs := []string{"mods", "config"}
 	for _, dir := range requiredDirs {
 		dirPath := filepath.Join(serverDir, dir)
@@ -34,19 +34,19 @@ func (f *FileValidator) ValidateServerStructure(serverDir string) []ValidationEr
 			})
 		}
 	}
-	
+
 	if err := f.validateServerJar(serverDir); err != nil {
 		errors = append(errors, *err)
 	}
-	
+
 	if err := f.validateModFiles(serverDir); err != nil {
 		errors = append(errors, err...)
 	}
-	
+
 	if err := f.validatePermissions(serverDir); err != nil {
 		errors = append(errors, err...)
 	}
-	
+
 	return errors
 }
 
@@ -57,14 +57,14 @@ func (f *FileValidator) validateServerJar(serverDir string) *ValidationError {
 		"fabric-server-launch.jar",
 		"neoforge-*.jar",
 	}
-	
+
 	for _, pattern := range patterns {
 		matches, _ := filepath.Glob(filepath.Join(serverDir, pattern))
 		if len(matches) > 0 {
 			return nil
 		}
 	}
-	
+
 	return &ValidationError{
 		Path:    serverDir,
 		Issue:   "No server JAR file found",
@@ -75,22 +75,22 @@ func (f *FileValidator) validateServerJar(serverDir string) *ValidationError {
 
 func (f *FileValidator) validateModFiles(serverDir string) []ValidationError {
 	var errors []ValidationError
-	
+
 	modsDir := filepath.Join(serverDir, "mods")
 	if _, err := os.Stat(modsDir); os.IsNotExist(err) {
 		return errors
 	}
-	
+
 	entries, err := os.ReadDir(modsDir)
 	if err != nil {
 		return errors
 	}
-	
+
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
 		}
-		
+
 		if filepath.Ext(entry.Name()) != ".jar" {
 			errors = append(errors, ValidationError{
 				Path:    filepath.Join(modsDir, entry.Name()),
@@ -100,13 +100,13 @@ func (f *FileValidator) validateModFiles(serverDir string) []ValidationError {
 			})
 		}
 	}
-	
+
 	return errors
 }
 
 func (f *FileValidator) validatePermissions(serverDir string) []ValidationError {
 	var errors []ValidationError
-	
+
 	testFile := filepath.Join(serverDir, ".chunk-permission-test")
 	err := os.WriteFile(testFile, []byte("test"), 0644)
 	if err != nil {
@@ -119,7 +119,7 @@ func (f *FileValidator) validatePermissions(serverDir string) []ValidationError 
 	} else {
 		os.Remove(testFile)
 	}
-	
+
 	scripts := []string{"start.sh", "start.command"}
 	for _, script := range scripts {
 		scriptPath := filepath.Join(serverDir, script)
@@ -133,35 +133,35 @@ func (f *FileValidator) validatePermissions(serverDir string) []ValidationError 
 			})
 		}
 	}
-	
+
 	return errors
 }
 
 func (f *FileValidator) ValidateConfigFiles(serverDir string) []ValidationError {
 	var errors []ValidationError
-	
+
 	configDir := filepath.Join(serverDir, "config")
 	if _, err := os.Stat(configDir); os.IsNotExist(err) {
 		return errors
 	}
-	
+
 	entries, err := os.ReadDir(configDir)
 	if err != nil {
 		return errors
 	}
-	
+
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
 		}
-		
+
 		configPath := filepath.Join(configDir, entry.Name())
-		
+
 		info, err := os.Stat(configPath)
 		if err != nil {
 			continue
 		}
-		
+
 		if info.Size() == 0 {
 			errors = append(errors, ValidationError{
 				Path:    configPath,
@@ -171,36 +171,36 @@ func (f *FileValidator) ValidateConfigFiles(serverDir string) []ValidationError 
 			})
 		}
 	}
-	
+
 	return errors
 }
 
 func (f *FileValidator) AutoFix(errors []ValidationError) int {
 	fixed := 0
-	
+
 	for _, err := range errors {
 		if !err.Fixable {
 			continue
 		}
-		
+
 		switch err.Issue {
 		case "Required directory missing":
 			if e := os.MkdirAll(err.Path, 0755); e == nil {
 				fmt.Printf("✓ Created directory: %s\n", err.Path)
 				fixed++
 			}
-			
+
 		case "Start script is not executable":
 			if e := os.Chmod(err.Path, 0755); e == nil {
 				fmt.Printf("✓ Made executable: %s\n", err.Path)
 				fixed++
 			}
-			
+
 		case "Non-JAR file in mods directory":
 			fmt.Printf("⚠️  Found non-JAR in mods: %s (manual removal recommended)\n", err.Path)
 		}
 	}
-	
+
 	return fixed
 }
 
@@ -209,9 +209,9 @@ func (f *FileValidator) PrintErrors(errors []ValidationError) {
 		fmt.Println("✅ All validation checks passed!")
 		return
 	}
-	
+
 	fmt.Printf("\n⚠️  Found %d validation issue(s):\n\n", len(errors))
-	
+
 	for i, err := range errors {
 		fmt.Printf("%d. %s\n", i+1, err.Path)
 		fmt.Printf("   Issue: %s\n", err.Issue)

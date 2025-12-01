@@ -17,13 +17,13 @@ func NewJavaInstaller() *JavaInstaller {
 
 func (i *JavaInstaller) GuideInstallation(mcVersion string) error {
 	requiredVersion := GetRequiredJavaVersion(mcVersion)
-	
+
 	fmt.Printf("\n🔧 Java Installation Guide\n\n")
 	fmt.Printf("Minecraft %s requires Java %d or higher.\n\n", mcVersion, requiredVersion)
-	
+
 	recommendation := i.validator.GetRecommendedJava(mcVersion)
 	fmt.Printf("Recommended: %s\n\n", recommendation)
-	
+
 	switch runtime.GOOS {
 	case "windows":
 		i.printWindowsInstructions(requiredVersion)
@@ -32,13 +32,13 @@ func (i *JavaInstaller) GuideInstallation(mcVersion string) error {
 	case "linux":
 		i.printLinuxInstructions(requiredVersion)
 	}
-	
+
 	fmt.Printf("\nAfter installation:\n")
 	fmt.Printf("1. Restart your terminal\n")
 	fmt.Printf("2. Run: java -version\n")
 	fmt.Printf("3. Verify Java %d or higher is installed\n", requiredVersion)
 	fmt.Printf("4. Run 'chunk install' again\n\n")
-	
+
 	return nil
 }
 
@@ -82,6 +82,6 @@ func (i *JavaInstaller) CheckAndGuide(mcVersion string) error {
 		fmt.Printf("\n")
 		return i.GuideInstallation(mcVersion)
 	}
-	
+
 	return nil
 }
