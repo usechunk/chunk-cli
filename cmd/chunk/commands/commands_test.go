@@ -19,10 +19,9 @@ func executeCommand(root *cobra.Command, args ...string) (output string, err err
 
 func TestInstallCommand(t *testing.T) {
 	tests := []struct {
-		name        string
-		args        []string
-		wantErr     bool
-		checkOutput func(output string) bool
+		name    string
+		args    []string
+		wantErr bool
 	}{
 		{
 			name:    "install without args",
