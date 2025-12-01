@@ -165,3 +165,63 @@ func TestDiffCommand(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckCommand(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{
+			name:    "check without args",
+			args:    []string{},
+			wantErr: false, // Should work on current directory
+		},
+		{
+			name:    "check with modpack",
+			args:    []string{"atm9"},
+			wantErr: false,
+		},
+		{
+			name:    "check with directory",
+			args:    []string{"--dir", "/tmp"},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rootCmd := &cobra.Command{Use: "chunk"}
+			rootCmd.AddCommand(CheckCmd)
+
+			_, err := executeCommand(rootCmd, append([]string{"check"}, tt.args...)...)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CheckCmd error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCheckCommandFlags(t *testing.T) {
+	// Test that the check command has the expected flags
+	rootCmd := &cobra.Command{Use: "chunk"}
+	rootCmd.AddCommand(CheckCmd)
+
+	// Check that --dir flag exists
+	dirFlag := CheckCmd.Flags().Lookup("dir")
+	if dirFlag == nil {
+		t.Error("Expected --dir flag to exist")
+	}
+	if dirFlag.Shorthand != "d" {
+		t.Errorf("Expected --dir shorthand to be 'd', got '%s'", dirFlag.Shorthand)
+	}
+
+	// Check that --format flag exists
+	formatFlag := CheckCmd.Flags().Lookup("format")
+	if formatFlag == nil {
+		t.Error("Expected --format flag to exist")
+	}
+	if formatFlag.Shorthand != "f" {
+		t.Errorf("Expected --format shorthand to be 'f', got '%s'", formatFlag.Shorthand)
+	}
+}
