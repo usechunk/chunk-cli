@@ -310,17 +310,23 @@ func (r *Resolver) ValidateDependencies(deps []*Dependency) ([]*ValidationResult
 		if len(constraints) > 1 {
 			// Check if constraints are compatible
 			compatible := true
-			for i := 0; i < len(constraints)-1 && compatible; i++ {
+			for i := 0; i < len(constraints); i++ {
 				c1, err := ParseVersionConstraints(constraints[i])
 				if err != nil {
 					continue
 				}
-				c2, err := ParseVersionConstraints(constraints[i+1])
-				if err != nil {
-					continue
+				for j := i + 1; j < len(constraints); j++ {
+					c2, err := ParseVersionConstraints(constraints[j])
+					if err != nil {
+						continue
+					}
+					if !IsCompatible(c1, c2) {
+						compatible = false
+						break
+					}
 				}
-				if !IsCompatible(c1, c2) {
-					compatible = false
+				if !compatible {
+					break
 				}
 			}
 
