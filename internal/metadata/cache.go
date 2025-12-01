@@ -175,5 +175,7 @@ func (c *Cache) GetTTL() time.Duration {
 
 // SetTTL updates the TTL for future cache entries.
 func (c *Cache) SetTTL(ttl time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.ttl = ttl
 }
