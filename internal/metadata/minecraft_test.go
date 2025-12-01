@@ -70,6 +70,17 @@ func TestGetJavaVersionFromMapping(t *testing.T) {
 			mcVersion: "24w05a",
 			want:      8,
 		},
+		// Edge cases for version prefix matching - ensure 1.2 doesn't match 1.20
+		{
+			name:      "1.20.1 should match 1.20 not 1.2",
+			mcVersion: "1.20.1",
+			want:      17, // Should match 1.20 (Java 17), not 1.2 (doesn't exist)
+		},
+		{
+			name:      "1.21.1 should match 1.21 for Java 21",
+			mcVersion: "1.21.1",
+			want:      21, // Should match 1.21
+		},
 	}
 
 	for _, tt := range tests {

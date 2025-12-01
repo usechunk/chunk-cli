@@ -16,6 +16,9 @@ const (
 	CacheKeyNeoForgeVersions = "neoforge_versions"
 )
 
+// neoForgeVersionPattern is a pre-compiled regex for parsing NeoForge version strings.
+var neoForgeVersionPattern = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:-(.+))?$`)
+
 // NeoForgeClient provides methods for fetching NeoForge version information.
 type NeoForgeClient struct {
 	httpClient *http.Client
@@ -160,12 +163,8 @@ func (n *NeoForgeClient) getMavenVersions() (*neoForgeMavenResponse, error) {
 func (n *NeoForgeClient) parseVersions(versionStrings []string) ([]LoaderVersion, error) {
 	var versions []LoaderVersion
 
-	// NeoForge version pattern: major.minor.patch[-type]
-	// The major.minor typically corresponds to MC version minor.patch
-	versionPattern := regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:-(.+))?$`)
-
 	for _, v := range versionStrings {
-		matches := versionPattern.FindStringSubmatch(v)
+		matches := neoForgeVersionPattern.FindStringSubmatch(v)
 		if len(matches) < 4 {
 			continue
 		}

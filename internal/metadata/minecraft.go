@@ -163,10 +163,25 @@ func getJavaVersionFromMapping(mcVersion string) (int, error) {
 		}
 	}
 
-	// Check for prefix matches (e.g., "1.20.1" matches "1.20")
-	for pattern, javaVersion := range JavaVersionRequirements {
-		if strings.HasPrefix(mcVersion, pattern) {
-			return javaVersion, nil
+	// Sort patterns by length (longest first) to ensure more specific matches are checked first
+	// This prevents "1.2" from matching "1.20" or "1.1" from matching "1.10"
+	patterns := make([]string, 0, len(JavaVersionRequirements))
+	for pattern := range JavaVersionRequirements {
+		patterns = append(patterns, pattern)
+	}
+	// Sort by length descending
+	for i := 0; i < len(patterns)-1; i++ {
+		for j := i + 1; j < len(patterns); j++ {
+			if len(patterns[j]) > len(patterns[i]) {
+				patterns[i], patterns[j] = patterns[j], patterns[i]
+			}
+		}
+	}
+
+	// Check for prefix matches with sorted patterns (longest first)
+	for _, pattern := range patterns {
+		if strings.HasPrefix(mcVersion, pattern+".") || mcVersion == pattern {
+			return JavaVersionRequirements[pattern], nil
 		}
 	}
 

@@ -16,6 +16,9 @@ const (
 	CacheKeyForgeVersions = "forge_versions"
 )
 
+// forgePromoPattern is a pre-compiled regex for parsing Forge promotion keys.
+var forgePromoPattern = regexp.MustCompile(`^(.+)-(recommended|latest)$`)
+
 // ForgeClient provides methods for fetching Forge version information.
 type ForgeClient struct {
 	httpClient *http.Client
@@ -175,12 +178,11 @@ func (f *ForgeClient) fetchPromotions() (*forgePromotions, error) {
 // parsePromotions converts Forge promotions data to LoaderVersion slice.
 func (f *ForgeClient) parsePromotions(promos *forgePromotions) ([]LoaderVersion, error) {
 	var versions []LoaderVersion
-	versionPattern := regexp.MustCompile(`^(.+)-(recommended|latest)$`)
 
 	seen := make(map[string]bool)
 
 	for key, version := range promos.Promos {
-		matches := versionPattern.FindStringSubmatch(key)
+		matches := forgePromoPattern.FindStringSubmatch(key)
 		if len(matches) != 3 {
 			continue
 		}
@@ -215,12 +217,11 @@ func (f *ForgeClient) GetSupportedMCVersions() ([]string, error) {
 		return nil, err
 	}
 
-	versionPattern := regexp.MustCompile(`^(.+)-(recommended|latest)$`)
 	seen := make(map[string]bool)
 	var mcVersions []string
 
 	for key := range promos.Promos {
-		matches := versionPattern.FindStringSubmatch(key)
+		matches := forgePromoPattern.FindStringSubmatch(key)
 		if len(matches) != 3 {
 			continue
 		}
