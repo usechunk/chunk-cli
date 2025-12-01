@@ -244,8 +244,18 @@ func (r *Resolver) findBestVersion(modID, constraint string) (*ModInfo, error) {
 
 	// Sort versions based on strategy
 	sort.Slice(matching, func(i, j int) bool {
-		vi, _ := ParseVersion(matching[i].Version)
-		vj, _ := ParseVersion(matching[j].Version)
+		vi, err1 := ParseVersion(matching[i].Version)
+		vj, err2 := ParseVersion(matching[j].Version)
+		// Handle parsing errors: place unparsable versions last
+		if err1 != nil && err2 != nil {
+			return false // maintain order
+		}
+		if err1 != nil {
+			return false // i is unparsable, so j < i
+		}
+		if err2 != nil {
+			return true // j is unparsable, so i < j
+		}
 		cmp := vi.Compare(vj)
 		if r.options.Strategy == StrategyLatest {
 			return cmp > 0 // Latest first
