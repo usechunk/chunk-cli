@@ -9,12 +9,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alexinslc/chunk/internal/checksum"
 	"github.com/alexinslc/chunk/internal/sources"
 	"github.com/alexinslc/chunk/internal/ui"
 )
 
 type ModManager struct {
 	httpClient *http.Client
+	SkipVerify bool
 }
 
 func NewModManager() *ModManager {
@@ -105,8 +107,22 @@ func (m *ModManager) downloadMod(mod *sources.Mod, destDir string) error {
 
 	destPath := filepath.Join(destDir, mod.FileName)
 
+	// Check if file already exists and verify its checksum if available
 	if _, err := os.Stat(destPath); err == nil {
-		return nil
+		if !m.SkipVerify && (mod.SHA256 != "" || mod.SHA512 != "") {
+			checksums := &checksum.Checksums{
+				SHA256: mod.SHA256,
+				SHA512: mod.SHA512,
+			}
+			if err := checksum.VerifyFile(destPath, checksums); err == nil {
+				// File exists and checksum matches, skip download
+				return nil
+			}
+			// File exists but checksum doesn't match, re-download
+		} else {
+			// File exists and no checksum verification needed
+			return nil
+		}
 	}
 
 	resp, err := m.httpClient.Get(mod.DownloadURL)
@@ -125,8 +141,34 @@ func (m *ModManager) downloadMod(mod *sources.Mod, destDir string) error {
 	}
 	defer out.Close()
 
-	_, err = io.Copy(out, resp.Body)
-	return err
+	// Set up checksum verification during download if enabled and checksums are available
+	var reader io.Reader = resp.Body
+	var verifyResult *checksum.VerificationResult
+
+	if !m.SkipVerify && (mod.SHA256 != "" || mod.SHA512 != "") {
+		checksums := &checksum.Checksums{
+			SHA256: mod.SHA256,
+			SHA512: mod.SHA512,
+		}
+		reader, verifyResult = checksum.VerifyReader(resp.Body, checksums)
+	}
+
+	if _, err := io.Copy(out, reader); err != nil {
+		// Clean up partial file on error (defer will handle closing)
+		os.Remove(destPath)
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	// Complete checksum verification if it was set up
+	if verifyResult != nil {
+		if err := verifyResult.Verify(destPath); err != nil {
+			// Remove file with bad checksum (defer will handle closing)
+			os.Remove(destPath)
+			return fmt.Errorf("checksum verification failed for %s: %w", mod.FileName, err)
+		}
+	}
+
+	return nil
 }
 
 func (m *ModManager) ResolveDependencies(mods []*sources.Mod) ([]*sources.Mod, error) {

@@ -56,6 +56,15 @@ func TestInstallCommandFlags(t *testing.T) {
 	if dirFlag.Shorthand != "d" {
 		t.Errorf("Expected --dir shorthand to be 'd', got '%s'", dirFlag.Shorthand)
 	}
+
+	// Check that --skip-verify flag exists
+	skipVerifyFlag := InstallCmd.Flags().Lookup("skip-verify")
+	if skipVerifyFlag == nil {
+		t.Error("Expected --skip-verify flag to exist")
+	}
+	if skipVerifyFlag.DefValue != "false" {
+		t.Errorf("Expected --skip-verify default to be 'false', got '%s'", skipVerifyFlag.DefValue)
+	}
 }
 
 func TestSearchCommand(t *testing.T) {

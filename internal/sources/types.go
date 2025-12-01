@@ -49,6 +49,8 @@ type Version struct {
 	ReleaseDate string
 	IsStable    bool
 	DownloadURL string
+	SHA256      string
+	SHA512      string
 }
 
 type Mod struct {
@@ -58,6 +60,8 @@ type Mod struct {
 	DownloadURL string
 	Side        ModSide
 	Required    bool
+	SHA256      string
+	SHA512      string
 }
 
 type LoaderType string

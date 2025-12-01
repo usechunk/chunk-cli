@@ -82,6 +82,7 @@ func (p *MRPackParser) Parse(filePath string) (*Modpack, error) {
 			DownloadURL: file.Downloads[0],
 			Side:        side,
 			Required:    true,
+			SHA512:      file.Hashes.SHA512,
 		}
 
 		modpack.Mods = append(modpack.Mods, mod)
