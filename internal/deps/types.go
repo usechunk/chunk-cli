@@ -3,6 +3,7 @@ package deps
 
 import (
 	"fmt"
+	"strings"
 )
 
 // DependencyType represents the relationship type of a dependency.
@@ -18,6 +19,30 @@ const (
 	// Embedded dependencies are bundled within the mod.
 	Embedded DependencyType = "embedded"
 )
+
+// LoaderType represents the mod loader framework.
+type LoaderType string
+
+const (
+	// LoaderForge is the Forge mod loader.
+	LoaderForge LoaderType = "forge"
+	// LoaderFabric is the Fabric mod loader.
+	LoaderFabric LoaderType = "fabric"
+	// LoaderNeoForge is the NeoForge mod loader.
+	LoaderNeoForge LoaderType = "neoforge"
+	// LoaderSponge is the Sponge mod loader.
+	LoaderSponge LoaderType = "sponge"
+	// LoaderQuilt is the Quilt mod loader.
+	LoaderQuilt LoaderType = "quilt"
+)
+
+// LoaderRequirement specifies a mod loader and version requirement.
+type LoaderRequirement struct {
+	// Loader is the required mod loader (forge, fabric, neoforge, sponge, quilt).
+	Loader LoaderType `json:"loader"`
+	// VersionConstraint specifies the loader version requirement (e.g., ">=47.0.0 <48.0.0").
+	VersionConstraint string `json:"version_constraint,omitempty"`
+}
 
 // Dependency represents a mod dependency with version constraints.
 type Dependency struct {
@@ -55,6 +80,8 @@ type DependencyGraph struct {
 	Conflicts []*VersionConflict `json:"conflicts,omitempty"`
 	// Incompatibles contains any incompatible mod pairs.
 	Incompatibles []*IncompatiblePair `json:"incompatibles,omitempty"`
+	// LoaderConflicts contains any loader/framework conflicts detected.
+	LoaderConflicts []*LoaderConflict `json:"loader_conflicts,omitempty"`
 }
 
 // VersionConflict represents a version conflict between dependencies.
@@ -74,6 +101,22 @@ type IncompatiblePair struct {
 	// ModB is the second mod ID.
 	ModB string `json:"mod_b"`
 	// Reason explains why they are incompatible.
+	Reason string `json:"reason,omitempty"`
+}
+
+// LoaderConflict represents a mod requiring a different loader or version.
+type LoaderConflict struct {
+	// ModID is the mod with the loader requirement.
+	ModID string `json:"mod_id"`
+	// RequiredLoader is the loader the mod requires.
+	RequiredLoader LoaderType `json:"required_loader"`
+	// RequiredVersion is the loader version constraint.
+	RequiredVersion string `json:"required_version,omitempty"`
+	// TargetLoader is the loader being installed.
+	TargetLoader LoaderType `json:"target_loader"`
+	// TargetVersion is the version of the loader being installed.
+	TargetVersion string `json:"target_version,omitempty"`
+	// Reason explains the conflict.
 	Reason string `json:"reason,omitempty"`
 }
 
@@ -101,6 +144,8 @@ const (
 	ErrIncompatible ResolutionErrorType = "incompatible"
 	// ErrInvalidConstraint indicates an invalid version constraint.
 	ErrInvalidConstraint ResolutionErrorType = "invalid_constraint"
+	// ErrLoaderMismatch indicates a mod requires a different loader or version.
+	ErrLoaderMismatch ResolutionErrorType = "loader_mismatch"
 )
 
 func (e *ResolutionError) Error() string {
@@ -119,6 +164,10 @@ type ModInfo struct {
 	Dependencies []*Dependency `json:"dependencies,omitempty"`
 	// DownloadURL is the URL to download this version.
 	DownloadURL string `json:"download_url,omitempty"`
+	// LoaderRequirements specifies required mod loaders and their versions.
+	LoaderRequirements []*LoaderRequirement `json:"loader_requirements,omitempty"`
+	// MinecraftVersion specifies the required Minecraft version.
+	MinecraftVersion string `json:"minecraft_version,omitempty"`
 }
 
 // ModInfoProvider is an interface for fetching mod information.
@@ -149,6 +198,12 @@ type ResolutionOptions struct {
 	IncludeOptional bool
 	// MaxDepth limits the recursion depth (0 = unlimited).
 	MaxDepth int
+	// TargetLoader is the mod loader being used (forge, fabric, neoforge, etc.).
+	TargetLoader LoaderType
+	// TargetLoaderVersion is the version of the target loader.
+	TargetLoaderVersion string
+	// MinecraftVersion is the target Minecraft version.
+	MinecraftVersion string
 }
 
 // DefaultResolutionOptions returns the default resolution options.
@@ -157,5 +212,57 @@ func DefaultResolutionOptions() *ResolutionOptions {
 		Strategy:        StrategyLatest,
 		IncludeOptional: true,
 		MaxDepth:        0,
+	}
+}
+
+// CheckLoaderCompatibility checks if a mod is compatible with the target loader.
+func CheckLoaderCompatibility(mod *ModInfo, targetLoader LoaderType, targetVersion string) *LoaderConflict {
+	if len(mod.LoaderRequirements) == 0 {
+		return nil // No loader requirements specified
+	}
+
+	for _, req := range mod.LoaderRequirements {
+		if req.Loader == targetLoader {
+			// Loader matches, check version if specified
+			if req.VersionConstraint != "" && targetVersion != "" {
+				constraints, err := ParseVersionConstraints(req.VersionConstraint)
+				if err != nil {
+					return &LoaderConflict{
+						ModID:           mod.ID,
+						RequiredLoader:  req.Loader,
+						RequiredVersion: req.VersionConstraint,
+						TargetLoader:    targetLoader,
+						TargetVersion:   targetVersion,
+						Reason:          fmt.Sprintf("invalid loader version constraint: %v", err),
+					}
+				}
+				if !constraints.MatchesString(targetVersion) {
+					return &LoaderConflict{
+						ModID:           mod.ID,
+						RequiredLoader:  req.Loader,
+						RequiredVersion: req.VersionConstraint,
+						TargetLoader:    targetLoader,
+						TargetVersion:   targetVersion,
+						Reason: fmt.Sprintf("mod %s requires %s version %s, but %s is installed",
+							mod.ID, req.Loader, req.VersionConstraint, targetVersion),
+					}
+				}
+			}
+			return nil // Compatible
+		}
+	}
+
+	// No matching loader found - mod may not support the target loader
+	var requiredLoaders []string
+	for _, req := range mod.LoaderRequirements {
+		requiredLoaders = append(requiredLoaders, string(req.Loader))
+	}
+	return &LoaderConflict{
+		ModID:          mod.ID,
+		RequiredLoader: mod.LoaderRequirements[0].Loader,
+		TargetLoader:   targetLoader,
+		TargetVersion:  targetVersion,
+		Reason: fmt.Sprintf("mod %s requires one of [%s], but %s is being used",
+			mod.ID, strings.Join(requiredLoaders, ", "), targetLoader),
 	}
 }

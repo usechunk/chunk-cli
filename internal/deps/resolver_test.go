@@ -514,3 +514,137 @@ func TestValidateDependencies(t *testing.T) {
 		t.Error("Expected incompatibility result")
 	}
 }
+
+func TestCheckLoaderCompatibility(t *testing.T) {
+	tests := []struct {
+		name          string
+		mod           *ModInfo
+		targetLoader  LoaderType
+		targetVersion string
+		wantConflict  bool
+	}{
+		{
+			name: "compatible loader and version",
+			mod: &ModInfo{
+				ID:      "test-mod",
+				Version: "1.0.0",
+				LoaderRequirements: []*LoaderRequirement{
+					{Loader: LoaderForge, VersionConstraint: ">=47.0.0"},
+				},
+			},
+			targetLoader:  LoaderForge,
+			targetVersion: "47.2.0",
+			wantConflict:  false,
+		},
+		{
+			name: "wrong loader type",
+			mod: &ModInfo{
+				ID:      "test-mod",
+				Version: "1.0.0",
+				LoaderRequirements: []*LoaderRequirement{
+					{Loader: LoaderForge, VersionConstraint: ">=47.0.0"},
+				},
+			},
+			targetLoader:  LoaderFabric,
+			targetVersion: "0.14.0",
+			wantConflict:  true,
+		},
+		{
+			name: "incompatible loader version",
+			mod: &ModInfo{
+				ID:      "test-mod",
+				Version: "1.0.0",
+				LoaderRequirements: []*LoaderRequirement{
+					{Loader: LoaderForge, VersionConstraint: ">=47.0.0 <48.0.0"},
+				},
+			},
+			targetLoader:  LoaderForge,
+			targetVersion: "48.1.0",
+			wantConflict:  true,
+		},
+		{
+			name: "no loader requirements",
+			mod: &ModInfo{
+				ID:      "test-mod",
+				Version: "1.0.0",
+			},
+			targetLoader:  LoaderForge,
+			targetVersion: "47.2.0",
+			wantConflict:  false,
+		},
+		{
+			name: "multiple loader support - one matches",
+			mod: &ModInfo{
+				ID:      "test-mod",
+				Version: "1.0.0",
+				LoaderRequirements: []*LoaderRequirement{
+					{Loader: LoaderForge, VersionConstraint: ">=47.0.0"},
+					{Loader: LoaderFabric, VersionConstraint: ">=0.14.0"},
+				},
+			},
+			targetLoader:  LoaderFabric,
+			targetVersion: "0.15.0",
+			wantConflict:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conflict := CheckLoaderCompatibility(tt.mod, tt.targetLoader, tt.targetVersion)
+			if (conflict != nil) != tt.wantConflict {
+				t.Errorf("CheckLoaderCompatibility() conflict = %v, wantConflict = %v", conflict, tt.wantConflict)
+			}
+		})
+	}
+}
+
+func TestResolver_WithLoaderContext(t *testing.T) {
+	provider := newMockProvider()
+
+	// Add a mod that requires Forge
+	provider.addMod(&ModInfo{
+		ID:      "forge-mod",
+		Name:    "Forge Mod",
+		Version: "1.0.0",
+		LoaderRequirements: []*LoaderRequirement{
+			{Loader: LoaderForge, VersionConstraint: ">=47.0.0"},
+		},
+	})
+
+	// Resolve with compatible loader
+	resolver := NewResolver(provider, &ResolutionOptions{
+		Strategy:            StrategyLatest,
+		IncludeOptional:     true,
+		TargetLoader:        LoaderForge,
+		TargetLoaderVersion: "47.2.0",
+	})
+	graph, err := resolver.Resolve("forge-mod", "1.0.0")
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+
+	if len(graph.LoaderConflicts) > 0 {
+		t.Errorf("Expected no loader conflicts, got %d", len(graph.LoaderConflicts))
+	}
+
+	// Resolve with incompatible loader
+	resolver = NewResolver(provider, &ResolutionOptions{
+		Strategy:            StrategyLatest,
+		IncludeOptional:     true,
+		TargetLoader:        LoaderFabric,
+		TargetLoaderVersion: "0.14.0",
+	})
+	resolver.cache = newResolutionCache()
+	graph, err = resolver.Resolve("forge-mod", "1.0.0")
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+
+	if len(graph.LoaderConflicts) != 1 {
+		t.Errorf("Expected 1 loader conflict, got %d", len(graph.LoaderConflicts))
+	}
+
+	if !graph.HasErrors() {
+		t.Error("Expected HasErrors() to return true for loader conflict")
+	}
+}

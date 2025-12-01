@@ -67,7 +67,7 @@ func (r *Resolver) Resolve(modID, version string) (*DependencyGraph, error) {
 	visiting := make(map[string]bool)
 
 	// Resolve the dependency tree
-	resolved, conflicts, incompatibles, err := r.resolveDependencies(modInfo, visited, visiting, 0)
+	resolved, conflicts, incompatibles, loaderConflicts, err := r.resolveDependencies(modInfo, visited, visiting, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -76,10 +76,11 @@ func (r *Resolver) Resolve(modID, version string) (*DependencyGraph, error) {
 	allMods := r.flattenDependencies(resolved)
 
 	return &DependencyGraph{
-		Root:          resolved,
-		AllMods:       allMods,
-		Conflicts:     conflicts,
-		Incompatibles: incompatibles,
+		Root:            resolved,
+		AllMods:         allMods,
+		Conflicts:       conflicts,
+		Incompatibles:   incompatibles,
+		LoaderConflicts: loaderConflicts,
 	}, nil
 }
 
@@ -89,12 +90,12 @@ func (r *Resolver) resolveDependencies(
 	visited map[string]bool,
 	visiting map[string]bool,
 	depth int,
-) (*ResolvedDependency, []*VersionConflict, []*IncompatiblePair, error) {
+) (*ResolvedDependency, []*VersionConflict, []*IncompatiblePair, []*LoaderConflict, error) {
 	key := modInfo.ID + "@" + modInfo.Version
 
 	// Check for circular dependency
 	if visiting[key] {
-		return nil, nil, nil, &ResolutionError{
+		return nil, nil, nil, nil, &ResolutionError{
 			Type:    ErrCircularDependency,
 			Message: fmt.Sprintf("circular dependency detected: %s", key),
 		}
@@ -102,7 +103,7 @@ func (r *Resolver) resolveDependencies(
 
 	// Check cache
 	if cached, ok := r.cache.get(key); ok {
-		return cached, nil, nil, nil
+		return cached, nil, nil, nil, nil
 	}
 
 	// Check max depth
@@ -111,12 +112,20 @@ func (r *Resolver) resolveDependencies(
 			ID:          modInfo.ID,
 			Version:     modInfo.Version,
 			DownloadURL: modInfo.DownloadURL,
-		}, nil, nil, nil
+		}, nil, nil, nil, nil
 	}
 
 	// Mark as currently visiting
 	visiting[key] = true
 	defer func() { visiting[key] = false }()
+
+	// Check loader compatibility if target loader is specified
+	var allLoaderConflicts []*LoaderConflict
+	if r.options.TargetLoader != "" {
+		if conflict := CheckLoaderCompatibility(modInfo, r.options.TargetLoader, r.options.TargetLoaderVersion); conflict != nil {
+			allLoaderConflicts = append(allLoaderConflicts, conflict)
+		}
+	}
 
 	resolved := &ResolvedDependency{
 		ID:          modInfo.ID,
@@ -165,20 +174,20 @@ func (r *Resolver) resolveDependencies(
 				// Optional dependency not found - skip it
 				continue
 			}
-			return nil, nil, nil, &ResolutionError{
+			return nil, nil, nil, nil, &ResolutionError{
 				Type:    ErrNotFound,
 				Message: fmt.Sprintf("dependency %s not found: %v", dep.ID, err),
 			}
 		}
 
 		// Recursively resolve the dependency
-		depResolved, conflicts, incompatibles, err := r.resolveDependencies(depInfo, visited, visiting, depth+1)
+		depResolved, conflicts, incompatibles, loaderConflicts, err := r.resolveDependencies(depInfo, visited, visiting, depth+1)
 		if err != nil {
 			if dep.Type == Optional {
 				// Failed to resolve optional dependency - skip it
 				continue
 			}
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
 		depResolved.Type = dep.Type
@@ -187,6 +196,7 @@ func (r *Resolver) resolveDependencies(
 		resolved.Dependencies = append(resolved.Dependencies, depResolved)
 		allConflicts = append(allConflicts, conflicts...)
 		allIncompatibles = append(allIncompatibles, incompatibles...)
+		allLoaderConflicts = append(allLoaderConflicts, loaderConflicts...)
 	}
 
 	// Mark as visited
@@ -195,7 +205,7 @@ func (r *Resolver) resolveDependencies(
 	// Cache the result
 	r.cache.set(key, resolved)
 
-	return resolved, allConflicts, allIncompatibles, nil
+	return resolved, allConflicts, allIncompatibles, allLoaderConflicts, nil
 }
 
 // findBestVersion finds the best version of a mod matching the constraint.
@@ -409,7 +419,7 @@ func (g *DependencyGraph) GenerateGraph() string {
 
 // HasErrors returns true if the graph has any conflicts or incompatibilities.
 func (g *DependencyGraph) HasErrors() bool {
-	return len(g.Conflicts) > 0 || len(g.Incompatibles) > 0
+	return len(g.Conflicts) > 0 || len(g.Incompatibles) > 0 || len(g.LoaderConflicts) > 0
 }
 
 // GetErrors returns a list of error messages.
@@ -424,6 +434,11 @@ func (g *DependencyGraph) GetErrors() []string {
 	for _, pair := range g.Incompatibles {
 		errors = append(errors, fmt.Sprintf("Incompatible mods: %s and %s - %s",
 			pair.ModA, pair.ModB, pair.Reason))
+	}
+
+	for _, loader := range g.LoaderConflicts {
+		errors = append(errors, fmt.Sprintf("Loader conflict for %s: %s",
+			loader.ModID, loader.Reason))
 	}
 
 	return errors
