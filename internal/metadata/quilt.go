@@ -17,6 +17,8 @@ const (
 )
 
 // QuiltClient provides methods for fetching Quilt version information.
+// Note: The Quilt API does not provide stability information for loader versions,
+// so all versions are assumed to be stable by default.
 type QuiltClient struct {
 	httpClient *http.Client
 	cache      *Cache

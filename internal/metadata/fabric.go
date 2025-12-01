@@ -66,7 +66,7 @@ func (f *FabricClient) GetVersions() ([]LoaderVersion, error) {
 	return versions, nil
 }
 
-// GetVersionsForMC returns Fabric loader versions.
+// GetVersionsForMC returns Fabric loader versions compatible with a specific Minecraft version.
 // Note: Fabric loader versions are generally compatible with all supported MC versions.
 func (f *FabricClient) GetVersionsForMC(mcVersion string) ([]LoaderVersion, error) {
 	// First check if the MC version is supported by Fabric

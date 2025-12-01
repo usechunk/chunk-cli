@@ -157,7 +157,7 @@ var JavaVersionRequirements = map[string]int{
 	"1.20": 17,
 	"1.19": 17,
 	"1.18": 17,
-	"1.17": 16, // 1.17 specifically required Java 16
+	"1.17": 16, // 1.17 requires Java 16
 	// Java 8+ (older versions)
 	"1.16": 8,
 	"1.15": 8,
