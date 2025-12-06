@@ -8,10 +8,11 @@ import (
 )
 
 type Bench struct {
-	Name  string    `json:"name"`
-	URL   string    `json:"url"`
-	Path  string    `json:"path"`
-	Added time.Time `json:"added"`
+	Name        string     `json:"name"`
+	URL         string     `json:"url"`
+	Path        string     `json:"path"`
+	Added       time.Time  `json:"added"`
+	LastUpdated *time.Time `json:"last_updated,omitempty"`
 }
 
 type Config struct {
