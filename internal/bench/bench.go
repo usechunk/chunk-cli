@@ -79,9 +79,19 @@ func (m *Manager) Add(name string, url string) error {
 		return fmt.Errorf("failed to create benches directory: %w", err)
 	}
 
-	// Determine the bench path
-	benchPath := filepath.Join(benchesDir, name)
+	// Validate and sanitize the bench name to prevent path traversal
+	if strings.Contains(name, "..") || strings.Contains(name, string(filepath.Separator)) || filepath.IsAbs(name) {
+		return fmt.Errorf("invalid bench name: cannot contain path traversal patterns or separators")
+	}
 
+	// Determine the bench path
+	benchPath := filepath.Clean(filepath.Join(benchesDir, name))
+
+	// Ensure the benchPath is still under benchesDir
+	rel, err := filepath.Rel(benchesDir, benchPath)
+	if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
+		return fmt.Errorf("invalid bench name: path traversal detected")
+	}
 	// Clone the repository
 	cmd := exec.Command("git", "clone", url, benchPath)
 	cmd.Stdout = os.Stdout
