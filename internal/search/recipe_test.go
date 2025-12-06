@@ -11,7 +11,7 @@ func TestLoadRecipe_JSON(t *testing.T) {
 	// Create a temporary test recipe file
 	tmpDir := t.TempDir()
 	recipeFile := filepath.Join(tmpDir, "test-recipe.json")
-	
+
 	recipeContent := `{
 		"name": "Test Modpack",
 		"description": "A test modpack",
@@ -21,7 +21,7 @@ func TestLoadRecipe_JSON(t *testing.T) {
 		"recommended_ram_gb": 8,
 		"tags": ["test", "forge"]
 	}`
-	
+
 	if err := os.WriteFile(recipeFile, []byte(recipeContent), 0644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestLoadRecipe_YAML(t *testing.T) {
 	// Create a temporary test recipe file
 	tmpDir := t.TempDir()
 	recipeFile := filepath.Join(tmpDir, "test-recipe.yaml")
-	
+
 	recipeContent := `name: Test Modpack
 description: A test modpack
 mc_version: "1.20.1"
@@ -63,7 +63,7 @@ recommended_ram_gb: 4
 tags:
   - test
   - fabric`
-	
+
 	if err := os.WriteFile(recipeFile, []byte(recipeContent), 0644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
@@ -154,7 +154,7 @@ loader: fabric`
 
 func TestLoadRecipesFromBench_NoRecipesDir(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	_, err := LoadRecipesFromBench(tmpDir, "test/bench")
 	if err == nil {
 		t.Error("Expected error when Recipes directory doesn't exist")
@@ -229,33 +229,33 @@ func TestMatchRecipe(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		query       string
-		shouldMatch bool
+		name          string
+		query         string
+		shouldMatch   bool
 		expectedField string
 	}{
 		{
-			name:        "match by name",
-			query:       "all the mods",
-			shouldMatch: true,
+			name:          "match by name",
+			query:         "all the mods",
+			shouldMatch:   true,
 			expectedField: "name",
 		},
 		{
-			name:        "match by slug",
-			query:       "all-the-mods-9",
-			shouldMatch: true,
+			name:          "match by slug",
+			query:         "all-the-mods-9",
+			shouldMatch:   true,
 			expectedField: "slug",
 		},
 		{
-			name:        "match by description",
-			query:       "kitchen sink",
-			shouldMatch: true,
+			name:          "match by description",
+			query:         "kitchen sink",
+			shouldMatch:   true,
 			expectedField: "name", // "kitchen-sink" tag might match first
 		},
 		{
-			name:        "match by tag",
-			query:       "tech",
-			shouldMatch: true,
+			name:          "match by tag",
+			query:         "tech",
+			shouldMatch:   true,
 			expectedField: "tags",
 		},
 		{

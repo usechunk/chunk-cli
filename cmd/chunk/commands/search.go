@@ -32,7 +32,7 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		query := args[0]
-		
+
 		searcher, err := search.NewSearcher()
 		if err != nil {
 			return fmt.Errorf("failed to initialize search: %w", err)
@@ -62,15 +62,15 @@ Examples:
 
 		for _, result := range results {
 			r := result.Recipe
-			
+
 			// Recipe name and bench
 			fmt.Printf("%s (%s)\n", r.Slug, r.BenchName)
-			
+
 			// Description (if available)
 			if r.Description != "" {
 				fmt.Printf("  %s\n", r.Description)
 			}
-			
+
 			// Metadata
 			ramInfo := ""
 			if r.RecommendedRAMGB > 0 {
@@ -81,7 +81,7 @@ Examples:
 				fmt.Printf(" %s", r.LoaderVersion)
 			}
 			fmt.Printf("%s\n", ramInfo)
-			
+
 			fmt.Println()
 		}
 

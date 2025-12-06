@@ -26,7 +26,7 @@ func NewSearcher() (*Searcher, error) {
 // If benchFilter is not empty, only search in that specific bench
 func (s *Searcher) Search(query string, benchFilter string) ([]*SearchResult, error) {
 	benches := s.manager.List()
-	
+
 	// Filter to specific bench if requested
 	if benchFilter != "" {
 		filtered := []config.Bench{}
