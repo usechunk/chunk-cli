@@ -11,53 +11,71 @@ import (
 )
 
 var BenchCmd = &cobra.Command{
-	Use:   "bench [user/repo] [url]",
+	Use:   "bench",
 	Short: "Manage recipe benches",
 	Long: `Manage recipe benches (repositories containing recipes).
 
 Benches are Git repositories that contain modpack recipes in a Recipes/ directory.
 Similar to Homebrew taps, benches allow you to add custom recipe sources.
 
-Examples:
-  chunk bench                        # List all benches
-  chunk bench usechunk/recipes       # Add bench from GitHub
-  chunk bench myuser/repo git@github.com:myuser/repo.git  # Add with custom URL
-  chunk bench remove usechunk/recipes  # Remove a bench
-  chunk bench info usechunk/recipes    # Show bench details
-
 Benches are stored in ~/.chunk/Benches/`,
-	RunE: runBench,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return listBenches()
+	},
 }
 
-func runBench(cmd *cobra.Command, args []string) error {
-	// No arguments - list all benches
-	if len(args) == 0 {
+var benchAddCmd = &cobra.Command{
+	Use:   "add <user/repo> [url]",
+	Short: "Add a new bench",
+	Long: `Add a new bench from GitHub or a custom URL.
+
+Examples:
+  chunk bench add usechunk/recipes                      # Add from GitHub
+  chunk bench add myrepo git@github.com:user/repo.git  # Add with custom URL`,
+	Args: cobra.RangeArgs(1, 2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		name := args[0]
+		url := ""
+		if len(args) > 1 {
+			url = args[1]
+		}
+		return addBench(name, url)
+	},
+}
+
+var benchRemoveCmd = &cobra.Command{
+	Use:   "remove <user/repo>",
+	Short: "Remove a bench",
+	Long: `Remove an installed bench.
+
+Example:
+  chunk bench remove usechunk/recipes`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return removeBench(args[0])
+	},
+}
+
+var benchInfoCmd = &cobra.Command{
+	Use:   "info <user/repo>",
+	Short: "Show bench details",
+	Long: `Show detailed information about an installed bench.
+
+Example:
+  chunk bench info usechunk/recipes`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return infoBench(args[0])
+	},
+}
+
+var benchListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all benches",
+	Long:  `List all installed benches.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		return listBenches()
-	}
-
-	// Check for subcommands
-	if args[0] == "remove" {
-		if len(args) < 2 {
-			return fmt.Errorf("bench name required for remove")
-		}
-		return removeBench(args[1])
-	}
-
-	if args[0] == "info" {
-		if len(args) < 2 {
-			return fmt.Errorf("bench name required for info")
-		}
-		return infoBench(args[1])
-	}
-
-	// Otherwise, treat as add operation
-	name := args[0]
-	url := ""
-	if len(args) > 1 {
-		url = args[1]
-	}
-
-	return addBench(name, url)
+	},
 }
 
 func listBenches() error {
@@ -108,6 +126,7 @@ func addBench(name string, url string) error {
 		fmt.Printf("   URL: %s\n", normalizedURL)
 	}
 	fmt.Println()
+	fmt.Println("   Cloning repository...")
 
 	if err := manager.Add(name, url); err != nil {
 		return err
@@ -184,6 +203,12 @@ func infoBench(name string) error {
 }
 
 func init() {
+	// Add subcommands
+	BenchCmd.AddCommand(benchAddCmd)
+	BenchCmd.AddCommand(benchRemoveCmd)
+	BenchCmd.AddCommand(benchInfoCmd)
+	BenchCmd.AddCommand(benchListCmd)
+
 	// Suppress usage printing on errors
 	BenchCmd.SilenceUsage = true
 	BenchCmd.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {

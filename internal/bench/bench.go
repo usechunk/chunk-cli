@@ -80,8 +80,8 @@ func (m *Manager) Add(name string, url string) error {
 	}
 
 	// Validate and sanitize the bench name to prevent path traversal
-	if strings.Contains(name, "..") || strings.Contains(name, string(filepath.Separator)) || filepath.IsAbs(name) {
-		return fmt.Errorf("invalid bench name: cannot contain path traversal patterns or separators")
+	if strings.Contains(name, "..") || filepath.IsAbs(name) {
+		return fmt.Errorf("invalid bench name: cannot contain '..' or be an absolute path")
 	}
 
 	// Determine the bench path
@@ -94,8 +94,6 @@ func (m *Manager) Add(name string, url string) error {
 	}
 	// Clone the repository
 	cmd := exec.Command("git", "clone", url, benchPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
@@ -104,7 +102,9 @@ func (m *Manager) Add(name string, url string) error {
 	recipesDir := filepath.Join(benchPath, "Recipes")
 	if _, err := os.Stat(recipesDir); os.IsNotExist(err) {
 		// Clean up the cloned directory
-		os.RemoveAll(benchPath)
+		if cleanupErr := os.RemoveAll(benchPath); cleanupErr != nil {
+			return fmt.Errorf("invalid bench: no Recipes/ directory found (cleanup also failed: %v)", cleanupErr)
+		}
 		return fmt.Errorf("invalid bench: no Recipes/ directory found")
 	}
 
@@ -169,9 +169,9 @@ func (m *Manager) List() []config.Bench {
 
 // Get returns a specific bench by name
 func (m *Manager) Get(name string) (*config.Bench, error) {
-	for _, b := range m.config.Benches {
+	for i, b := range m.config.Benches {
 		if b.Name == name {
-			return &b, nil
+			return &m.config.Benches[i], nil
 		}
 	}
 	return nil, fmt.Errorf("bench '%s' not found", name)

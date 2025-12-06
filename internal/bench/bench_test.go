@@ -2,7 +2,9 @@ package bench
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/alexinslc/chunk/internal/config"
@@ -222,8 +224,13 @@ func TestValidateGitURL(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "url with dollar sign",
-			url:     "https://example.com/$VAR/repo",
+			name:    "url with command substitution",
+			url:     "https://example.com/$(whoami)/repo",
+			wantErr: true,
+		},
+		{
+			name:    "url with variable expansion",
+			url:     "https://example.com/${VAR}/repo",
 			wantErr: true,
 		},
 		{
@@ -241,4 +248,172 @@ func TestValidateGitURL(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestManagerAdd(t *testing.T) {
+// Setup temporary config
+tmpDir := t.TempDir()
+configDir := filepath.Join(tmpDir, ".config", "chunk")
+if err := os.MkdirAll(configDir, 0755); err != nil {
+t.Fatalf("Failed to create config dir: %v", err)
+}
+
+// Set HOME to temp directory
+originalHome := os.Getenv("HOME")
+os.Setenv("HOME", tmpDir)
+defer os.Setenv("HOME", originalHome)
+
+// Create empty config
+cfg := &config.Config{
+ConfigVersion: "1.0",
+Benches:       []config.Bench{},
+}
+if err := cfg.Save(); err != nil {
+t.Fatalf("Failed to save config: %v", err)
+}
+
+// Create a test git repository
+testRepoDir := filepath.Join(tmpDir, "test-repo")
+if err := os.MkdirAll(filepath.Join(testRepoDir, "Recipes"), 0755); err != nil {
+t.Fatalf("Failed to create test repo: %v", err)
+}
+// Initialize as git repo
+cmd := exec.Command("git", "init", testRepoDir)
+if err := cmd.Run(); err != nil {
+t.Skipf("Skipping test: git not available: %v", err)
+}
+// Create a test file and commit
+testFile := filepath.Join(testRepoDir, "Recipes", "test.yaml")
+if err := os.WriteFile(testFile, []byte("test: recipe"), 0644); err != nil {
+t.Fatalf("Failed to create test file: %v", err)
+}
+cmd = exec.Command("git", "-C", testRepoDir, "add", ".")
+if err := cmd.Run(); err != nil {
+t.Skipf("Skipping test: git add failed: %v", err)
+}
+cmd = exec.Command("git", "-C", testRepoDir, "config", "user.email", "test@test.com")
+cmd.Run()
+cmd = exec.Command("git", "-C", testRepoDir, "config", "user.name", "Test User")
+cmd.Run()
+cmd = exec.Command("git", "-C", testRepoDir, "commit", "-m", "Initial commit")
+if err := cmd.Run(); err != nil {
+t.Skipf("Skipping test: git commit failed: %v", err)
+}
+
+manager, err := NewManager()
+if err != nil {
+t.Fatalf("NewManager() error = %v", err)
+}
+
+// Test adding a bench
+err = manager.Add("test/repo", testRepoDir)
+if err != nil {
+t.Errorf("Add() error = %v", err)
+}
+
+// Verify bench was added
+benches := manager.List()
+if len(benches) != 1 {
+t.Errorf("Expected 1 bench after add, got %d", len(benches))
+}
+
+// Test adding duplicate bench
+err = manager.Add("test/repo", testRepoDir)
+if err == nil {
+t.Error("Expected error when adding duplicate bench, got nil")
+}
+
+// Test adding bench without Recipes directory
+noRecipesDir := filepath.Join(tmpDir, "no-recipes")
+if err := os.MkdirAll(noRecipesDir, 0755); err != nil {
+t.Fatalf("Failed to create no-recipes dir: %v", err)
+}
+cmd = exec.Command("git", "init", noRecipesDir)
+cmd.Run()
+cmd = exec.Command("git", "-C", noRecipesDir, "config", "user.email", "test@test.com")
+cmd.Run()
+cmd = exec.Command("git", "-C", noRecipesDir, "config", "user.name", "Test User")
+cmd.Run()
+emptyFile := filepath.Join(noRecipesDir, "README.md")
+os.WriteFile(emptyFile, []byte("test"), 0644)
+cmd = exec.Command("git", "-C", noRecipesDir, "add", ".")
+cmd.Run()
+cmd = exec.Command("git", "-C", noRecipesDir, "commit", "-m", "Initial")
+cmd.Run()
+
+err = manager.Add("invalid/repo", noRecipesDir)
+if err == nil {
+t.Error("Expected error for repo without Recipes directory, got nil")
+}
+if !strings.Contains(err.Error(), "no Recipes/") {
+t.Errorf("Expected error about missing Recipes directory, got: %v", err)
+}
+
+// Test path traversal protection
+err = manager.Add("../malicious", testRepoDir)
+if err == nil {
+t.Error("Expected error for path traversal attempt, got nil")
+}
+}
+
+func TestManagerRemove(t *testing.T) {
+// Setup temporary config
+tmpDir := t.TempDir()
+configDir := filepath.Join(tmpDir, ".config", "chunk")
+if err := os.MkdirAll(configDir, 0755); err != nil {
+t.Fatalf("Failed to create config dir: %v", err)
+}
+
+// Set HOME to temp directory
+originalHome := os.Getenv("HOME")
+os.Setenv("HOME", tmpDir)
+defer os.Setenv("HOME", originalHome)
+
+// Create a bench directory
+benchesDir := filepath.Join(tmpDir, ".chunk", "Benches", "test", "repo")
+if err := os.MkdirAll(benchesDir, 0755); err != nil {
+t.Fatalf("Failed to create bench dir: %v", err)
+}
+
+// Create config with a bench
+testBench := config.Bench{
+Name: "test/repo",
+URL:  "https://github.com/test/repo",
+Path: benchesDir,
+}
+cfg := &config.Config{
+ConfigVersion: "1.0",
+Benches:       []config.Bench{testBench},
+}
+if err := cfg.Save(); err != nil {
+t.Fatalf("Failed to save config: %v", err)
+}
+
+manager, err := NewManager()
+if err != nil {
+t.Fatalf("NewManager() error = %v", err)
+}
+
+// Test removing existing bench
+err = manager.Remove("test/repo")
+if err != nil {
+t.Errorf("Remove() error = %v", err)
+}
+
+// Verify bench was removed
+benches := manager.List()
+if len(benches) != 0 {
+t.Errorf("Expected 0 benches after remove, got %d", len(benches))
+}
+
+// Verify directory was deleted
+if _, err := os.Stat(benchesDir); !os.IsNotExist(err) {
+t.Error("Expected bench directory to be deleted")
+}
+
+// Test removing non-existent bench
+err = manager.Remove("nonexistent/repo")
+if err == nil {
+t.Error("Expected error when removing non-existent bench, got nil")
+}
 }
