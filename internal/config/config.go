@@ -4,13 +4,22 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"time"
 )
 
+type Bench struct {
+	Name  string    `json:"name"`
+	URL   string    `json:"url"`
+	Path  string    `json:"path"`
+	Added time.Time `json:"added"`
+}
+
 type Config struct {
-	TelemetryEnabled *bool  `json:"telemetry_enabled,omitempty"`
-	TelemetryAsked   bool   `json:"telemetry_asked"`
-	ConfigVersion    string `json:"config_version"`
-	ChunkHubAPIKey   string `json:"chunkhub_api_key,omitempty"`
+	TelemetryEnabled *bool   `json:"telemetry_enabled,omitempty"`
+	TelemetryAsked   bool    `json:"telemetry_asked"`
+	ConfigVersion    string  `json:"config_version"`
+	ChunkHubAPIKey   string  `json:"chunkhub_api_key,omitempty"`
+	Benches          []Bench `json:"benches,omitempty"`
 }
 
 func GetConfigPath() (string, error) {
