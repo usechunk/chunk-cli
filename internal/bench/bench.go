@@ -302,14 +302,8 @@ func (m *Manager) Update(name string) (*UpdateResult, error) {
 	diffCmd := exec.Command("git", "-C", benchToUpdate.Path, "diff", "--name-status", oldHead, newHead)
 	diffOutput, err := diffCmd.Output()
 	if err != nil {
-		// If diff fails, still consider the update successful
-		result.Success = true
-		now := time.Now()
-		benchToUpdate.LastUpdated = &now
-		if saveErr := m.config.Save(); saveErr != nil {
-			result.Error = fmt.Errorf("update succeeded but failed to save config: %w", saveErr)
-		}
-		return result, nil
+		// If diff fails, still consider the update successful and save timestamp
+		return m.updateBenchTimestamp(benchToUpdate, result)
 	}
 
 	// Parse the diff output
@@ -356,14 +350,18 @@ func (m *Manager) Update(name string) (*UpdateResult, error) {
 	}
 
 	// Update last_updated timestamp
+	return m.updateBenchTimestamp(benchToUpdate, result)
+}
+
+// updateBenchTimestamp updates the last_updated timestamp for a bench and saves the config
+func (m *Manager) updateBenchTimestamp(bench *config.Bench, result *UpdateResult) (*UpdateResult, error) {
 	now := time.Now()
-	benchToUpdate.LastUpdated = &now
+	bench.LastUpdated = &now
 	if err := m.config.Save(); err != nil {
 		result.Error = fmt.Errorf("update succeeded but failed to save config: %w", err)
 		result.Success = true
 		return result, result.Error
 	}
-
 	result.Success = true
 	return result, nil
 }
@@ -377,9 +375,17 @@ func (m *Manager) UpdateAll() ([]*UpdateResult, error) {
 	results := make([]*UpdateResult, 0, len(m.config.Benches))
 
 	for _, bench := range m.config.Benches {
-		result, _ := m.Update(bench.Name)
+		result, err := m.Update(bench.Name)
+		// Always include result, even on error
 		if result != nil {
 			results = append(results, result)
+		} else if err != nil {
+			// Create error result if Update returned nil result
+			results = append(results, &UpdateResult{
+				BenchName: bench.Name,
+				Success:   false,
+				Error:     err,
+			})
 		}
 	}
 
@@ -403,7 +409,8 @@ func extractVersionChange(repoPath, oldCommit, newCommit, filePath string) (stri
 	}
 
 	// Try to extract version from content (looking for version patterns)
-	versionRegex := regexp.MustCompile(`(?i)version["\s:]+([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9\.-]*)`)
+	// Matches standard semver: X.Y.Z with optional pre-release and build metadata
+	versionRegex := regexp.MustCompile(`(?i)version["\s:]+([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)*)?(?:\+[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)*)?)`)
 
 	oldMatches := versionRegex.FindStringSubmatch(string(oldContent))
 	newMatches := versionRegex.FindStringSubmatch(string(newContent))

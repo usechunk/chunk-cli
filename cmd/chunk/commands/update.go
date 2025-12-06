@@ -71,7 +71,7 @@ func runUpdate() error {
 	for _, result := range results {
 		if result.Error != nil {
 			fmt.Printf("==> %s\n", result.BenchName)
-			fmt.Printf("  ⚠️  Error: %v\n", result.Error)
+			fmt.Printf("  Error: %v\n", result.Error)
 			fmt.Println()
 			continue
 		}
