@@ -129,13 +129,6 @@ func displayRecipeInfo(recipe *search.Recipe, benchName string) error {
 		fmt.Println()
 	}
 
-	// Dependencies section (currently just Java)
-	if recipe.JavaVersion > 0 {
-		fmt.Println("Dependencies:")
-		fmt.Printf("  java@%d\n", recipe.JavaVersion)
-		fmt.Println()
-	}
-
 	// Download info
 	if recipe.DownloadURL != "" {
 		fmt.Printf("Download URL: %s\n", recipe.DownloadURL)

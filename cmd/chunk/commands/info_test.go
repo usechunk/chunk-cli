@@ -133,7 +133,6 @@ func TestInfoCommandWithBench(t *testing.T) {
 				"MIT",
 				"8 GB",
 				"10 GB",
-				"Java: 17",
 				"test-bench",
 			},
 		},
