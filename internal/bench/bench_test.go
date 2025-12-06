@@ -292,9 +292,9 @@ if err := cmd.Run(); err != nil {
 t.Skipf("Skipping test: git add failed: %v", err)
 }
 cmd = exec.Command("git", "-C", testRepoDir, "config", "user.email", "test@test.com")
-cmd.Run()
+_ = cmd.Run() // Ignore error - git config might fail in CI
 cmd = exec.Command("git", "-C", testRepoDir, "config", "user.name", "Test User")
-cmd.Run()
+_ = cmd.Run() // Ignore error - git config might fail in CI
 cmd = exec.Command("git", "-C", testRepoDir, "commit", "-m", "Initial commit")
 if err := cmd.Run(); err != nil {
 t.Skipf("Skipping test: git commit failed: %v", err)
@@ -329,17 +329,17 @@ if err := os.MkdirAll(noRecipesDir, 0755); err != nil {
 t.Fatalf("Failed to create no-recipes dir: %v", err)
 }
 cmd = exec.Command("git", "init", noRecipesDir)
-cmd.Run()
+_ = cmd.Run() // Ignore error - best effort setup
 cmd = exec.Command("git", "-C", noRecipesDir, "config", "user.email", "test@test.com")
-cmd.Run()
+_ = cmd.Run() // Ignore error - git config might fail in CI
 cmd = exec.Command("git", "-C", noRecipesDir, "config", "user.name", "Test User")
-cmd.Run()
+_ = cmd.Run() // Ignore error - git config might fail in CI
 emptyFile := filepath.Join(noRecipesDir, "README.md")
-os.WriteFile(emptyFile, []byte("test"), 0644)
+_ = os.WriteFile(emptyFile, []byte("test"), 0644) // Ignore error - best effort
 cmd = exec.Command("git", "-C", noRecipesDir, "add", ".")
-cmd.Run()
+_ = cmd.Run() // Ignore error - best effort setup
 cmd = exec.Command("git", "-C", noRecipesDir, "commit", "-m", "Initial")
-cmd.Run()
+_ = cmd.Run() // Ignore error - best effort setup
 
 err = manager.Add("invalid/repo", noRecipesDir)
 if err == nil {
