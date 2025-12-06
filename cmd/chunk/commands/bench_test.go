@@ -89,12 +89,12 @@ func TestGetBenchesDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetBenchesDir() error = %v", err)
 	}
-	
+
 	// Should contain .chunk/Benches
 	if !filepath.IsAbs(dir) {
 		t.Errorf("GetBenchesDir() returned non-absolute path: %s", dir)
 	}
-	
+
 	if !contains(dir, ".chunk") || !contains(dir, "Benches") {
 		t.Errorf("GetBenchesDir() = %s, should contain .chunk/Benches", dir)
 	}
@@ -103,35 +103,35 @@ func TestGetBenchesDir(t *testing.T) {
 func TestConfigWithBenches(t *testing.T) {
 	// Create a temporary config file
 	tmpDir := t.TempDir()
-	
+
 	// Set HOME to temp directory
 	originalHome := os.Getenv("HOME")
 	os.Setenv("HOME", tmpDir)
 	defer os.Setenv("HOME", originalHome)
-	
+
 	// Create config directory structure
 	configDir := filepath.Join(tmpDir, ".config", "chunk")
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		t.Fatalf("Failed to create config dir: %v", err)
 	}
-	
+
 	// Save the test config
 	testConfigPath := filepath.Join(configDir, "config.json")
 	data := []byte(`{"config_version":"1.0","benches":[{"name":"test/bench","url":"https://github.com/test/bench","path":"/tmp/test/bench","added":"2025-01-15T10:30:00Z"}]}`)
 	if err := os.WriteFile(testConfigPath, data, 0644); err != nil {
 		t.Fatalf("Failed to write test config: %v", err)
 	}
-	
+
 	// Load and verify
 	loaded, err := config.Load()
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	
+
 	if len(loaded.Benches) != 1 {
 		t.Errorf("Expected 1 bench, got %d", len(loaded.Benches))
 	}
-	
+
 	if loaded.Benches[0].Name != "test/bench" {
 		t.Errorf("Expected bench name 'test/bench', got '%s'", loaded.Benches[0].Name)
 	}

@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/alexinslc/chunk/internal/bench"
@@ -162,20 +163,17 @@ func infoBench(name string) error {
 	fmt.Println()
 
 	// Count recipes
-	recipesDir := strings.TrimPrefix(b.Path, "~")
-	if strings.HasPrefix(recipesDir, "/") {
-		recipesPath := fmt.Sprintf("%s/Recipes", b.Path)
-		if entries, err := os.ReadDir(recipesPath); err == nil {
-			recipeCount := 0
-			for _, entry := range entries {
-				if !entry.IsDir() && (strings.HasSuffix(entry.Name(), ".yaml") || strings.HasSuffix(entry.Name(), ".yml")) {
-					recipeCount++
-				}
+	recipesPath := filepath.Join(b.Path, "Recipes")
+	if entries, err := os.ReadDir(recipesPath); err == nil {
+		recipeCount := 0
+		for _, entry := range entries {
+			if !entry.IsDir() && (strings.HasSuffix(entry.Name(), ".yaml") || strings.HasSuffix(entry.Name(), ".yml")) {
+				recipeCount++
 			}
-			if recipeCount > 0 {
-				fmt.Printf("  Recipes: %d\n", recipeCount)
-				fmt.Println()
-			}
+		}
+		if recipeCount > 0 {
+			fmt.Printf("  Recipes: %d\n", recipeCount)
+			fmt.Println()
 		}
 	}
 

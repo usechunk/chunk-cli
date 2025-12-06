@@ -154,3 +154,91 @@ func endsWithPath(path, suffix string) bool {
 	return filepath.Base(filepath.Dir(path)) == filepath.Base(filepath.Dir(suffix)) &&
 		filepath.Base(path) == filepath.Base(suffix)
 }
+
+func TestValidateGitURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+	}{
+		{
+			name:    "valid https url",
+			url:     "https://github.com/user/repo",
+			wantErr: false,
+		},
+		{
+			name:    "valid http url",
+			url:     "http://example.com/repo.git",
+			wantErr: false,
+		},
+		{
+			name:    "valid ssh url",
+			url:     "git@github.com:user/repo.git",
+			wantErr: false,
+		},
+		{
+			name:    "valid ssh protocol",
+			url:     "ssh://git@github.com/user/repo.git",
+			wantErr: false,
+		},
+		{
+			name:    "valid file path",
+			url:     "file:///tmp/repo",
+			wantErr: false,
+		},
+		{
+			name:    "valid absolute path",
+			url:     "/tmp/test-repo",
+			wantErr: false,
+		},
+		{
+			name:    "valid relative path",
+			url:     "./test-repo",
+			wantErr: false,
+		},
+		{
+			name:    "empty url",
+			url:     "",
+			wantErr: true,
+		},
+		{
+			name:    "url with semicolon",
+			url:     "https://example.com/repo;rm -rf",
+			wantErr: true,
+		},
+		{
+			name:    "url with ampersand",
+			url:     "https://example.com/repo&malicious",
+			wantErr: true,
+		},
+		{
+			name:    "url with pipe",
+			url:     "https://example.com/repo|cat",
+			wantErr: true,
+		},
+		{
+			name:    "url with backtick",
+			url:     "https://example.com/repo`whoami`",
+			wantErr: true,
+		},
+		{
+			name:    "url with dollar sign",
+			url:     "https://example.com/$VAR/repo",
+			wantErr: true,
+		},
+		{
+			name:    "invalid protocol",
+			url:     "ftp://example.com/repo",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateGitURL(tt.url)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateGitURL(%s) error = %v, wantErr %v", tt.url, err, tt.wantErr)
+			}
+		})
+	}
+}

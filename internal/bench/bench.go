@@ -56,6 +56,11 @@ func (m *Manager) Add(name string, url string) error {
 		url = NormalizeGitHubURL(name)
 	}
 
+	// Validate URL format to prevent command injection
+	if err := validateGitURL(url); err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+
 	// Check if bench already exists
 	for _, b := range m.config.Benches {
 		if b.Name == name {
@@ -158,4 +163,37 @@ func (m *Manager) Get(name string) (*config.Bench, error) {
 		}
 	}
 	return nil, fmt.Errorf("bench '%s' not found", name)
+}
+
+// validateGitURL validates that a URL is safe to use with git clone
+func validateGitURL(url string) error {
+	// Check for empty URL
+	if url == "" {
+		return fmt.Errorf("URL cannot be empty")
+	}
+
+	// Check for shell metacharacters that could be dangerous
+	dangerousChars := []string{";", "&", "|", "`", "$", "(", ")", "<", ">", "\n", "\r"}
+	for _, char := range dangerousChars {
+		if strings.Contains(url, char) {
+			return fmt.Errorf("URL contains invalid character: %s", char)
+		}
+	}
+
+	// Validate that it's a reasonable URL format
+	// Allow: http://, https://, git@, ssh://, file://, or local paths
+	validPrefixes := []string{"http://", "https://", "git@", "ssh://", "file://", "/", "./", "../"}
+	hasValidPrefix := false
+	for _, prefix := range validPrefixes {
+		if strings.HasPrefix(url, prefix) {
+			hasValidPrefix = true
+			break
+		}
+	}
+
+	if !hasValidPrefix {
+		return fmt.Errorf("URL must start with a valid protocol or path")
+	}
+
+	return nil
 }
