@@ -427,3 +427,42 @@ func extractVersionChange(repoPath, oldCommit, newCommit, filePath string) (stri
 
 	return oldVersion, newVersion
 }
+
+// EnsureCoreBench automatically adds the core usechunk/recipes bench if no benches are installed.
+// This mimics Homebrew's behavior of adding homebrew-core on first run.
+// Returns nil if benches already exist, if CHUNK_NO_AUTO_BENCH=1 is set, or if successful.
+func EnsureCoreBench() error {
+	// Check if auto-bench is disabled via environment variable
+	if os.Getenv("CHUNK_NO_AUTO_BENCH") == "1" {
+		return nil
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// If benches already exist, nothing to do
+	if len(cfg.Benches) > 0 {
+		return nil
+	}
+
+	// Display message to user
+	fmt.Println()
+	fmt.Println("No recipe benches installed. Adding core bench...")
+	fmt.Println("==> Cloning usechunk/recipes")
+	fmt.Println()
+
+	// Create a manager and add the core bench
+	manager := &Manager{config: cfg}
+	if err := manager.Add("usechunk/recipes", ""); err != nil {
+		// If it fails, return error but don't block the command
+		return fmt.Errorf("failed to add core bench: %w", err)
+	}
+
+	fmt.Println()
+	fmt.Println("✅ Core bench added successfully!")
+	fmt.Println()
+
+	return nil
+}
