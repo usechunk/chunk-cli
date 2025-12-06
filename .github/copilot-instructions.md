@@ -4,7 +4,7 @@
 Go CLI tool for installing and managing Minecraft mods/modpacks. Integrates with multiple sources (Modrinth, CurseForge, GitHub, ChunkHub).
 
 ## Code Style
-- Go 1.21+
+- Go 1.25.4+
 - Run `go fmt` on all code
 - Use descriptive variable names
 - Add comments for exported functions
@@ -27,7 +27,7 @@ Go CLI tool for installing and managing Minecraft mods/modpacks. Integrates with
 ## File Structure
 - `cmd/` - CLI commands
 - `internal/` - Core logic (not exported)
-- `pkg/` - Reusable packages (exported)
+- `docs/` - User documentation
 
 ## Testing
 - Table-driven tests
