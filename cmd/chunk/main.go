@@ -48,6 +48,7 @@ func init() {
 	rootCmd.AddCommand(commands.CheckCmd)
 	rootCmd.AddCommand(commands.BenchCmd)
 	rootCmd.AddCommand(commands.UpdateCmd)
+	rootCmd.AddCommand(commands.InfoCmd)
 }
 
 func main() {

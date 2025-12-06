@@ -13,27 +13,32 @@ import (
 // Recipe represents a modpack recipe from a bench
 type Recipe struct {
 	// File metadata
-	FilePath string `json:"-" yaml:"-"` // Not exported in JSON/YAML
-	BenchName string `json:"-" yaml:"-"` // Not exported in JSON/YAML
-	Slug     string `json:"slug,omitempty" yaml:"slug,omitempty"` // Recipe filename without extension
-	
+	FilePath  string `json:"-" yaml:"-"`                           // Not exported in JSON/YAML
+	BenchName string `json:"-" yaml:"-"`                           // Not exported in JSON/YAML
+	Slug      string `json:"slug,omitempty" yaml:"slug,omitempty"` // Recipe filename without extension
+
 	// Recipe metadata
 	Name             string   `json:"name" yaml:"name"`
+	Version          string   `json:"version,omitempty" yaml:"version,omitempty"`
 	Description      string   `json:"description,omitempty" yaml:"description,omitempty"`
 	MCVersion        string   `json:"mc_version" yaml:"mc_version"`
 	Loader           string   `json:"loader" yaml:"loader"`
 	LoaderVersion    string   `json:"loader_version,omitempty" yaml:"loader_version,omitempty"`
 	RecommendedRAMGB int      `json:"recommended_ram_gb,omitempty" yaml:"recommended_ram_gb,omitempty"`
+	DiskSpaceGB      int      `json:"disk_space_gb,omitempty" yaml:"disk_space_gb,omitempty"`
 	JavaVersion      int      `json:"java_version,omitempty" yaml:"java_version,omitempty"`
 	Tags             []string `json:"tags,omitempty" yaml:"tags,omitempty"`
 	Author           string   `json:"author,omitempty" yaml:"author,omitempty"`
 	Homepage         string   `json:"homepage,omitempty" yaml:"homepage,omitempty"`
+	License          string   `json:"license,omitempty" yaml:"license,omitempty"`
+	DownloadURL      string   `json:"download_url,omitempty" yaml:"download_url,omitempty"`
+	DownloadSizeMB   int      `json:"download_size_mb,omitempty" yaml:"download_size_mb,omitempty"`
 }
 
 // SearchResult represents a recipe match with relevance score
 type SearchResult struct {
-	Recipe   *Recipe
-	Score    int    // Higher score = better match
+	Recipe       *Recipe
+	Score        int    // Higher score = better match
 	MatchedField string // Field that matched the query
 }
 
@@ -46,7 +51,7 @@ func LoadRecipe(path string, benchName string) (*Recipe, error) {
 
 	var recipe Recipe
 	ext := strings.ToLower(filepath.Ext(path))
-	
+
 	switch ext {
 	case ".json":
 		if err := json.Unmarshal(data, &recipe); err != nil {
@@ -63,7 +68,7 @@ func LoadRecipe(path string, benchName string) (*Recipe, error) {
 	// Set metadata
 	recipe.FilePath = path
 	recipe.BenchName = benchName
-	
+
 	// Generate slug from filename if not provided
 	if recipe.Slug == "" {
 		fileName := filepath.Base(path)
@@ -76,7 +81,7 @@ func LoadRecipe(path string, benchName string) (*Recipe, error) {
 // LoadRecipesFromBench loads all recipes from a bench's Recipes directory
 func LoadRecipesFromBench(benchPath string, benchName string) ([]*Recipe, error) {
 	recipesDir := filepath.Join(benchPath, "Recipes")
-	
+
 	// Check if Recipes directory exists
 	if _, err := os.Stat(recipesDir); os.IsNotExist(err) {
 		return nil, fmt.Errorf("Recipes directory not found: %s", recipesDir)
