@@ -183,11 +183,15 @@ func validateGitURL(url string) error {
 	}
 
 	// Check for shell metacharacters that could be dangerous
-	dangerousChars := []string{";", "&", "|", "`", "$", "(", ")", "<", ">", "\n", "\r"}
+	dangerousChars := []string{";", "&", "|", "`", "(", ")", "<", ">", "\n", "\r"}
 	for _, char := range dangerousChars {
 		if strings.Contains(url, char) {
 			return fmt.Errorf("URL contains invalid character: %s", char)
 		}
+	}
+	// Block command substitution and variable expansion patterns
+	if strings.Contains(url, "$(") || strings.Contains(url, "${") {
+		return fmt.Errorf("URL contains potentially dangerous shell pattern: $() or ${}")
 	}
 
 	// Validate that it's a reasonable URL format
