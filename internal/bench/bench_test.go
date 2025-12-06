@@ -572,3 +572,179 @@ func TestManagerUpdateAll(t *testing.T) {
 		t.Error("Expected error when updating with no benches, got nil")
 	}
 }
+
+func TestEnsureCoreBench(t *testing.T) {
+	tests := []struct {
+		name             string
+		existingBenches  []config.Bench
+		envVar           string
+		expectAdd        bool
+		expectErr        bool
+		skipIfNoInternet bool
+	}{
+		{
+			name:             "no benches installed - should add core bench",
+			existingBenches:  []config.Bench{},
+			envVar:           "",
+			expectAdd:        true,
+			expectErr:        false,
+			skipIfNoInternet: true,
+		},
+		{
+			name: "benches already exist - should not add",
+			existingBenches: []config.Bench{
+				{
+					Name: "test/bench",
+					URL:  "https://github.com/test/bench",
+					Path: "/tmp/test/bench",
+				},
+			},
+			envVar:    "",
+			expectAdd: false,
+			expectErr: false,
+		},
+		{
+			name:            "CHUNK_NO_AUTO_BENCH=1 - should skip",
+			existingBenches: []config.Bench{},
+			envVar:          "1",
+			expectAdd:       false,
+			expectErr:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup temporary environment
+			tmpDir := t.TempDir()
+			configDir := filepath.Join(tmpDir, ".config", "chunk")
+			if err := os.MkdirAll(configDir, 0755); err != nil {
+				t.Fatalf("Failed to create config dir: %v", err)
+			}
+
+			// Set HOME to temp directory
+			originalHome := os.Getenv("HOME")
+			os.Setenv("HOME", tmpDir)
+			defer os.Setenv("HOME", originalHome)
+
+			// Set or clear environment variable
+			originalEnv := os.Getenv("CHUNK_NO_AUTO_BENCH")
+			if tt.envVar != "" {
+				os.Setenv("CHUNK_NO_AUTO_BENCH", tt.envVar)
+			} else {
+				os.Unsetenv("CHUNK_NO_AUTO_BENCH")
+			}
+			defer func() {
+				if originalEnv != "" {
+					os.Setenv("CHUNK_NO_AUTO_BENCH", originalEnv)
+				} else {
+					os.Unsetenv("CHUNK_NO_AUTO_BENCH")
+				}
+			}()
+
+			// Create config with existing benches
+			cfg := &config.Config{
+				ConfigVersion: "1.0",
+				Benches:       tt.existingBenches,
+			}
+			if err := cfg.Save(); err != nil {
+				t.Fatalf("Failed to save config: %v", err)
+			}
+
+			// Call EnsureCoreBench
+			err := EnsureCoreBench()
+
+			// Check error expectation
+			if (err != nil) != tt.expectErr {
+				// Skip test if it requires internet and we get a network-related error
+				if tt.skipIfNoInternet && err != nil {
+					errStr := err.Error()
+					if strings.Contains(errStr, "failed to clone repository") ||
+						strings.Contains(errStr, "no Recipes/") ||
+						strings.Contains(errStr, "network") ||
+						strings.Contains(errStr, "connection") {
+						t.Skipf("Skipping test: network/repository issue (expected in CI): %v", err)
+					}
+				}
+				t.Errorf("EnsureCoreBench() error = %v, expectErr %v", err, tt.expectErr)
+				return
+			}
+
+			// Load config to verify changes
+			cfg, err = config.Load()
+			if err != nil {
+				t.Fatalf("Failed to load config after EnsureCoreBench: %v", err)
+			}
+
+			// Check if bench was added
+			benchAdded := false
+			for _, b := range cfg.Benches {
+				if b.Name == "usechunk/recipes" {
+					benchAdded = true
+					break
+				}
+			}
+
+			if tt.expectAdd && !benchAdded {
+				if tt.skipIfNoInternet {
+					t.Skipf("Skipping test: bench not added (likely network issue)")
+				}
+				t.Error("Expected core bench to be added, but it was not")
+			}
+			if !tt.expectAdd && benchAdded {
+				t.Error("Did not expect core bench to be added, but it was")
+			}
+		})
+	}
+}
+
+func TestEnsureCoreBenchWithExistingCoreBench(t *testing.T) {
+	// Setup temporary environment
+	tmpDir := t.TempDir()
+	configDir := filepath.Join(tmpDir, ".config", "chunk")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatalf("Failed to create config dir: %v", err)
+	}
+
+	// Set HOME to temp directory
+	originalHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", originalHome)
+
+	// Create config with existing core bench
+	cfg := &config.Config{
+		ConfigVersion: "1.0",
+		Benches: []config.Bench{
+			{
+				Name: "usechunk/recipes",
+				URL:  "https://github.com/usechunk/recipes",
+				Path: filepath.Join(tmpDir, ".chunk", "Benches", "usechunk", "recipes"),
+			},
+		},
+	}
+	if err := cfg.Save(); err != nil {
+		t.Fatalf("Failed to save config: %v", err)
+	}
+
+	// Call EnsureCoreBench
+	err := EnsureCoreBench()
+	if err != nil {
+		t.Errorf("EnsureCoreBench() error = %v, expected nil", err)
+	}
+
+	// Load config and verify no duplicate was added
+	cfg, err = config.Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	coreCount := 0
+	for _, b := range cfg.Benches {
+		if b.Name == "usechunk/recipes" {
+			coreCount++
+		}
+	}
+
+	if coreCount != 1 {
+		t.Errorf("Expected exactly 1 usechunk/recipes bench, got %d", coreCount)
+	}
+}

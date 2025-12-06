@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/alexinslc/chunk/cmd/chunk/commands"
+	"github.com/alexinslc/chunk/internal/bench"
 	"github.com/alexinslc/chunk/internal/telemetry"
 	"github.com/spf13/cobra"
 )
@@ -31,6 +32,9 @@ Examples:
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		if err := telemetry.PromptForTelemetry(); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: Could not handle telemetry prompt: %v\n", err)
+		}
+		if err := bench.EnsureCoreBench(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Could not auto-add core bench: %v\n", err)
 		}
 	},
 }
