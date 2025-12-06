@@ -120,7 +120,9 @@ func (m *Manager) Add(name string, url string) error {
 	// Save config
 	if err := m.config.Save(); err != nil {
 		// Clean up on config save failure
-		os.RemoveAll(benchPath)
+		if cleanupErr := os.RemoveAll(benchPath); cleanupErr != nil {
+			return fmt.Errorf("failed to save config: %w (also failed to cleanup: %v)", err, cleanupErr)
+		}
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
