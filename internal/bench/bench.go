@@ -1,10 +1,12 @@
 package bench
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -212,4 +214,209 @@ func validateGitURL(url string) error {
 	}
 
 	return nil
+}
+
+// UpdateResult contains the result of updating a bench
+type UpdateResult struct {
+	BenchName       string
+	Success         bool
+	AlreadyUpToDate bool
+	Error           error
+	NewRecipes      []string
+	UpdatedRecipes  []RecipeUpdate
+	RemovedRecipes  []string
+}
+
+// RecipeUpdate represents an updated recipe with version info
+type RecipeUpdate struct {
+	Name       string
+	OldVersion string
+	NewVersion string
+}
+
+// Update updates a specific bench by running git pull
+func (m *Manager) Update(name string) (*UpdateResult, error) {
+	// Find the bench
+	benchIndex := -1
+	var benchToUpdate *config.Bench
+	for i, b := range m.config.Benches {
+		if b.Name == name {
+			benchIndex = i
+			benchToUpdate = &m.config.Benches[i]
+			break
+		}
+	}
+
+	if benchIndex == -1 {
+		return nil, fmt.Errorf("bench '%s' not found", name)
+	}
+
+	result := &UpdateResult{
+		BenchName: name,
+		Success:   false,
+	}
+
+	// Check if the directory exists
+	if _, err := os.Stat(benchToUpdate.Path); os.IsNotExist(err) {
+		result.Error = fmt.Errorf("bench directory not found: %s", benchToUpdate.Path)
+		return result, result.Error
+	}
+
+	// Get the current HEAD before pulling
+	oldHeadCmd := exec.Command("git", "-C", benchToUpdate.Path, "rev-parse", "HEAD")
+	oldHeadOutput, err := oldHeadCmd.Output()
+	if err != nil {
+		result.Error = fmt.Errorf("failed to get current HEAD: %w", err)
+		return result, result.Error
+	}
+	oldHead := strings.TrimSpace(string(oldHeadOutput))
+
+	// Run git pull
+	var stdout, stderr bytes.Buffer
+	cmd := exec.Command("git", "-C", benchToUpdate.Path, "pull")
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		result.Error = fmt.Errorf("git pull failed: %w\nOutput: %s\nError: %s", err, stdout.String(), stderr.String())
+		return result, result.Error
+	}
+
+	// Get the new HEAD after pulling
+	newHeadCmd := exec.Command("git", "-C", benchToUpdate.Path, "rev-parse", "HEAD")
+	newHeadOutput, err := newHeadCmd.Output()
+	if err != nil {
+		result.Error = fmt.Errorf("failed to get new HEAD: %w", err)
+		return result, result.Error
+	}
+	newHead := strings.TrimSpace(string(newHeadOutput))
+
+	// Check if already up to date
+	if oldHead == newHead {
+		result.AlreadyUpToDate = true
+		result.Success = true
+		return result, nil
+	}
+
+	// Parse git diff to find changed recipes
+	diffCmd := exec.Command("git", "-C", benchToUpdate.Path, "diff", "--name-status", oldHead, newHead)
+	diffOutput, err := diffCmd.Output()
+	if err != nil {
+		// If diff fails, still consider the update successful
+		result.Success = true
+		now := time.Now()
+		benchToUpdate.LastUpdated = &now
+		if saveErr := m.config.Save(); saveErr != nil {
+			result.Error = fmt.Errorf("update succeeded but failed to save config: %w", saveErr)
+		}
+		return result, nil
+	}
+
+	// Parse the diff output
+	lines := strings.Split(strings.TrimSpace(string(diffOutput)), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			continue
+		}
+
+		status := parts[0]
+		filePath := parts[1]
+
+		// Only consider files in Recipes/ directory with .json, .yaml, or .yml extension
+		if !strings.HasPrefix(filePath, "Recipes/") {
+			continue
+		}
+
+		ext := strings.ToLower(filepath.Ext(filePath))
+		if ext != ".json" && ext != ".yaml" && ext != ".yml" {
+			continue
+		}
+
+		fileName := filepath.Base(filePath)
+
+		switch status {
+		case "A": // Added
+			result.NewRecipes = append(result.NewRecipes, fileName)
+		case "M": // Modified
+			// Try to extract version information
+			oldVersion, newVersion := extractVersionChange(benchToUpdate.Path, oldHead, newHead, filePath)
+			result.UpdatedRecipes = append(result.UpdatedRecipes, RecipeUpdate{
+				Name:       fileName,
+				OldVersion: oldVersion,
+				NewVersion: newVersion,
+			})
+		case "D": // Deleted
+			result.RemovedRecipes = append(result.RemovedRecipes, fileName)
+		}
+	}
+
+	// Update last_updated timestamp
+	now := time.Now()
+	benchToUpdate.LastUpdated = &now
+	if err := m.config.Save(); err != nil {
+		result.Error = fmt.Errorf("update succeeded but failed to save config: %w", err)
+		result.Success = true
+		return result, result.Error
+	}
+
+	result.Success = true
+	return result, nil
+}
+
+// UpdateAll updates all benches
+func (m *Manager) UpdateAll() ([]*UpdateResult, error) {
+	if len(m.config.Benches) == 0 {
+		return nil, fmt.Errorf("no benches installed")
+	}
+
+	results := make([]*UpdateResult, 0, len(m.config.Benches))
+
+	for _, bench := range m.config.Benches {
+		result, _ := m.Update(bench.Name)
+		if result != nil {
+			results = append(results, result)
+		}
+	}
+
+	return results, nil
+}
+
+// extractVersionChange attempts to extract version information from recipe file changes
+func extractVersionChange(repoPath, oldCommit, newCommit, filePath string) (string, string) {
+	// Get old version
+	oldCmd := exec.Command("git", "-C", repoPath, "show", fmt.Sprintf("%s:%s", oldCommit, filePath))
+	oldContent, err := oldCmd.Output()
+	if err != nil {
+		return "", ""
+	}
+
+	// Get new version
+	newCmd := exec.Command("git", "-C", repoPath, "show", fmt.Sprintf("%s:%s", newCommit, filePath))
+	newContent, err := newCmd.Output()
+	if err != nil {
+		return "", ""
+	}
+
+	// Try to extract version from content (looking for version patterns)
+	versionRegex := regexp.MustCompile(`(?i)version["\s:]+([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9\.-]*)`)
+
+	oldMatches := versionRegex.FindStringSubmatch(string(oldContent))
+	newMatches := versionRegex.FindStringSubmatch(string(newContent))
+
+	oldVersion := ""
+	newVersion := ""
+
+	if len(oldMatches) > 1 {
+		oldVersion = oldMatches[1]
+	}
+	if len(newMatches) > 1 {
+		newVersion = newMatches[1]
+	}
+
+	return oldVersion, newVersion
 }
