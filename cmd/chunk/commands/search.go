@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/alexinslc/chunk/internal/search"
 	"github.com/spf13/cobra"
@@ -96,5 +97,5 @@ func capitalize(s string) string {
 	if len(s) == 0 {
 		return s
 	}
-	return string(s[0]-32) + s[1:]
+	return strings.ToUpper(s[:1]) + s[1:]
 }
