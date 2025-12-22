@@ -232,10 +232,6 @@ func TestInfoCommandJSON(t *testing.T) {
 		t.Fatalf("failed to save test config: %v", err)
 	}
 
-	// Test JSON output
-	infoJSON = true
-	defer func() { infoJSON = false }()
-
 	// Capture stdout
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
@@ -247,7 +243,9 @@ func TestInfoCommandJSON(t *testing.T) {
 			return InfoCmd.RunE(cmd, args)
 		},
 	}
-	cmd.SetArgs([]string{"test-modpack"})
+	// Add the json flag to the test command
+	cmd.Flags().Bool("json", false, "Output in JSON format")
+	cmd.SetArgs([]string{"test-modpack", "--json"})
 
 	err := cmd.Execute()
 	if err != nil {

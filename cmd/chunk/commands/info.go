@@ -10,10 +10,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	infoJSON bool
-)
-
 var InfoCmd = &cobra.Command{
 	Use:   "info <recipe>",
 	Short: "Show detailed information about a recipe",
@@ -29,33 +25,34 @@ Examples:
 		recipeName := args[0]
 
 		// Find the recipe
-		recipe, benchName, err := findRecipe(recipeName)
+		recipe, err := findRecipe(recipeName)
 		if err != nil {
 			return err
 		}
 
 		// Display the info
-		if infoJSON {
+		jsonOutput, _ := cmd.Flags().GetBool("json")
+		if jsonOutput {
 			return displayRecipeInfoJSON(recipe)
 		}
-		return displayRecipeInfo(recipe, benchName)
+		return displayRecipeInfo(recipe)
 	},
 }
 
 func init() {
-	InfoCmd.Flags().BoolVar(&infoJSON, "json", false, "Output in JSON format")
+	InfoCmd.Flags().Bool("json", false, "Output in JSON format")
 }
 
 // findRecipe searches for a recipe across all benches
-func findRecipe(recipeName string) (*search.Recipe, string, error) {
+func findRecipe(recipeName string) (*search.Recipe, error) {
 	manager, err := bench.NewManager()
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to initialize bench manager: %w", err)
+		return nil, fmt.Errorf("failed to initialize bench manager: %w", err)
 	}
 
 	benches := manager.List()
 	if len(benches) == 0 {
-		return nil, "", fmt.Errorf("no benches installed. Run 'chunk bench add usechunk/recipes' to add recipes")
+		return nil, fmt.Errorf("no benches installed. Run 'chunk bench add usechunk/recipes' to add recipes")
 	}
 
 	// Try to find the recipe in any bench
@@ -69,16 +66,16 @@ func findRecipe(recipeName string) (*search.Recipe, string, error) {
 			// Match by slug or name (case-insensitive)
 			if strings.EqualFold(recipe.Slug, recipeName) ||
 				strings.EqualFold(recipe.Name, recipeName) {
-				return recipe, b.Name, nil
+				return recipe, nil
 			}
 		}
 	}
 
-	return nil, "", fmt.Errorf("recipe '%s' not found in any bench. Run 'chunk search %s' to find similar recipes", recipeName, recipeName)
+	return nil, fmt.Errorf("recipe '%s' not found in any bench. Run 'chunk search %s' to find similar recipes", recipeName, recipeName)
 }
 
 // displayRecipeInfo displays recipe information in human-readable format
-func displayRecipeInfo(recipe *search.Recipe, benchName string) error {
+func displayRecipeInfo(recipe *search.Recipe) error {
 	fmt.Println()
 
 	// Header with name and description
@@ -139,7 +136,7 @@ func displayRecipeInfo(recipe *search.Recipe, benchName string) error {
 	}
 
 	// Source bench
-	fmt.Printf("From: %s\n", benchName)
+	fmt.Printf("From: %s\n", recipe.BenchName)
 	fmt.Println()
 
 	return nil
