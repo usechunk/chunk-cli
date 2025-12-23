@@ -623,5 +623,5 @@ func containsString(s, substr string) bool {
 }
 
 func containsSubstring(s, substr string) bool {
-	return strings.Contains(s, substr)
+	return containsString(s, substr)
 }
