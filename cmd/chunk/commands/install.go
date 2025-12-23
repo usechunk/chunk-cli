@@ -73,6 +73,12 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Track the installation
+	if trackErr := install.TrackInstallation(result, modpack); trackErr != nil {
+		ui.PrintWarning(fmt.Sprintf("Failed to track installation: %v", trackErr))
+		// Don't fail the installation if tracking fails
+	}
+
 	// Display modpack info
 	displayModpackInfo(result.ModpackInfo)
 
