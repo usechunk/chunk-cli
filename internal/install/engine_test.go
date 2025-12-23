@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/alexinslc/chunk/internal/sources"
+	"github.com/alexinslc/chunk/internal/tracking"
 )
 
 func TestNewInstaller(t *testing.T) {
@@ -246,6 +247,170 @@ func TestResultFields(t *testing.T) {
 		t.Errorf("Expected DestDir '/path/to/server', got '%s'", result.DestDir)
 	}
 }
+
+func TestCreateRecipeSnapshot(t *testing.T) {
+	modpack := &sources.Modpack{
+		Name:           "Test Modpack",
+		Identifier:     "test-modpack",
+		Description:    "A test modpack",
+		MCVersion:      "1.20.1",
+		Loader:         sources.LoaderForge,
+		LoaderVersion:  "47.2.0",
+		Author:         "Test Author",
+		Source:         "test-source",
+		RecommendedRAM: 8,
+		ManifestURL:    "https://example.com/manifest.json",
+		Dependencies:   []string{"dep1", "dep2"},
+		Mods: []*sources.Mod{
+			{
+				Name:        "Test Mod",
+				Version:     "1.0.0",
+				FileName:    "testmod-1.0.0.jar",
+				DownloadURL: "https://example.com/mod.jar",
+				Side:        sources.SideBoth,
+				Required:    true,
+				SHA256:      "abc123",
+				SHA512:      "def456",
+			},
+		},
+	}
+
+	snapshot := createRecipeSnapshot(modpack)
+
+	if snapshot["name"] != "Test Modpack" {
+		t.Errorf("Expected name 'Test Modpack', got '%v'", snapshot["name"])
+	}
+	if snapshot["identifier"] != "test-modpack" {
+		t.Errorf("Expected identifier 'test-modpack', got '%v'", snapshot["identifier"])
+	}
+	if snapshot["mc_version"] != "1.20.1" {
+		t.Errorf("Expected mc_version '1.20.1', got '%v'", snapshot["mc_version"])
+	}
+	if snapshot["loader"] != "forge" {
+		t.Errorf("Expected loader 'forge', got '%v'", snapshot["loader"])
+	}
+	if snapshot["loader_version"] != "47.2.0" {
+		t.Errorf("Expected loader_version '47.2.0', got '%v'", snapshot["loader_version"])
+	}
+
+	deps, ok := snapshot["dependencies"].([]string)
+	if !ok {
+		t.Error("Expected dependencies to be []string")
+	} else if len(deps) != 2 {
+		t.Errorf("Expected 2 dependencies, got %d", len(deps))
+	}
+
+	mods, ok := snapshot["mods"].([]map[string]interface{})
+	if !ok {
+		t.Error("Expected mods to be []map[string]interface{}")
+	} else if len(mods) != 1 {
+		t.Errorf("Expected 1 mod, got %d", len(mods))
+	} else {
+		mod := mods[0]
+		if mod["name"] != "Test Mod" {
+			t.Errorf("Expected mod name 'Test Mod', got '%v'", mod["name"])
+		}
+		if mod["sha256"] != "abc123" {
+			t.Errorf("Expected mod sha256 'abc123', got '%v'", mod["sha256"])
+		}
+	}
+}
+
+func TestTrackInstallation(t *testing.T) {
+	// Create temporary directory for test tracking
+	tmpHome, err := os.MkdirTemp("", "chunk-track-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp home: %v", err)
+	}
+	defer os.RemoveAll(tmpHome)
+
+	// Set HOME to temporary directory
+	originalHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpHome)
+	defer os.Setenv("HOME", originalHome)
+
+	modpack := &sources.Modpack{
+		Name:           "All the Mods 9",
+		Identifier:     "atm9",
+		Description:    "All the Mods 9 modpack",
+		MCVersion:      "1.20.1",
+		Loader:         sources.LoaderForge,
+		LoaderVersion:  "47.2.0",
+		Author:         "ATM Team",
+		Source:         "usechunk/recipes",
+		RecommendedRAM: 8,
+		Mods:           []*sources.Mod{},
+	}
+
+	result := &Result{
+		ModpackName:   modpack.Name,
+		MCVersion:     modpack.MCVersion,
+		Loader:        modpack.Loader,
+		LoaderVersion: modpack.LoaderVersion,
+		ModsInstalled: 0,
+		DestDir:       "/opt/minecraft/atm9",
+		Modpack:       modpack,
+	}
+
+	// Track installation
+	err = TrackInstallation(result, "atm9")
+	if err != nil {
+		t.Fatalf("TrackInstallation failed: %v", err)
+	}
+
+	// Verify installation was tracked
+	tracker, err := tracking.NewTracker()
+	if err != nil {
+		t.Fatalf("Failed to create tracker: %v", err)
+	}
+
+	installation, err := tracker.GetInstallation("/opt/minecraft/atm9")
+	if err != nil {
+		t.Fatalf("Failed to get installation: %v", err)
+	}
+
+	if installation == nil {
+		t.Fatal("Expected installation to be tracked")
+	}
+
+	if installation.Slug != "atm9" {
+		t.Errorf("Expected slug 'atm9', got '%s'", installation.Slug)
+	}
+	if installation.Path != "/opt/minecraft/atm9" {
+		t.Errorf("Expected path '/opt/minecraft/atm9', got '%s'", installation.Path)
+	}
+	if installation.Bench != "usechunk/recipes" {
+		t.Errorf("Expected bench 'usechunk/recipes', got '%s'", installation.Bench)
+	}
+
+	// Verify recipe snapshot
+	if installation.RecipeSnapshot == nil {
+		t.Fatal("Expected recipe snapshot to be set")
+	}
+	if installation.RecipeSnapshot["name"] != "All the Mods 9" {
+		t.Errorf("Expected recipe snapshot name 'All the Mods 9', got '%v'", installation.RecipeSnapshot["name"])
+	}
+}
+
+func TestTrackInstallationNilResult(t *testing.T) {
+	err := TrackInstallation(nil, "test")
+	if err == nil {
+		t.Error("Expected error when tracking nil result")
+	}
+}
+
+func TestTrackInstallationNilModpack(t *testing.T) {
+	result := &Result{
+		ModpackName: "Test",
+		Modpack:     nil,
+	}
+
+	err := TrackInstallation(result, "test")
+	if err == nil {
+		t.Error("Expected error when tracking result with nil modpack")
+	}
+}
+
 
 func TestInstallerExtractLocalModpack(t *testing.T) {
 	installer := NewInstaller()

@@ -9,6 +9,7 @@ import (
 
 	"github.com/alexinslc/chunk/internal/converter"
 	"github.com/alexinslc/chunk/internal/sources"
+	"github.com/alexinslc/chunk/internal/tracking"
 	"github.com/alexinslc/chunk/internal/ui"
 )
 
@@ -50,6 +51,7 @@ type Result struct {
 	ModsInstalled int
 	DestDir       string
 	ModpackInfo   *ModpackDisplayInfo
+	Modpack       *sources.Modpack // Full modpack info for tracking
 }
 
 // ModpackDisplayInfo contains modpack details for display
@@ -194,6 +196,7 @@ func (i *Installer) Install(opts *Options) (*Result, error) {
 		ModsInstalled: modsInstalled,
 		DestDir:       absDestDir,
 		ModpackInfo:   modpackInfo,
+		Modpack:       modpack,
 	}, nil
 }
 
@@ -325,4 +328,95 @@ func (i *Installer) generateScripts(modpack *sources.Modpack, destDir string) er
 
 	scriptGen := converter.NewScriptGenerator()
 	return scriptGen.Generate(opts)
+}
+
+// createRecipeSnapshot converts modpack data to a recipe snapshot for tracking
+func createRecipeSnapshot(modpack *sources.Modpack) map[string]interface{} {
+	snapshot := map[string]interface{}{
+		"name":           modpack.Name,
+		"identifier":     modpack.Identifier,
+		"description":    modpack.Description,
+		"mc_version":     modpack.MCVersion,
+		"loader":         string(modpack.Loader),
+		"loader_version": modpack.LoaderVersion,
+		"author":         modpack.Author,
+		"source":         modpack.Source,
+		"recommended_ram": modpack.RecommendedRAM,
+		"manifest_url":   modpack.ManifestURL,
+	}
+
+	if len(modpack.Dependencies) > 0 {
+		snapshot["dependencies"] = modpack.Dependencies
+	}
+
+	if len(modpack.Mods) > 0 {
+		mods := make([]map[string]interface{}, 0, len(modpack.Mods))
+		for _, mod := range modpack.Mods {
+			modData := map[string]interface{}{
+				"name":     mod.Name,
+				"version":  mod.Version,
+				"filename": mod.FileName,
+				"side":     string(mod.Side),
+				"required": mod.Required,
+			}
+			if mod.DownloadURL != "" {
+				modData["download_url"] = mod.DownloadURL
+			}
+			if mod.SHA256 != "" {
+				modData["sha256"] = mod.SHA256
+			}
+			if mod.SHA512 != "" {
+				modData["sha512"] = mod.SHA512
+			}
+			mods = append(mods, modData)
+		}
+		snapshot["mods"] = mods
+	}
+
+	return snapshot
+}
+
+// TrackInstallation records the installation in the tracking registry
+func TrackInstallation(result *Result, identifier string) error {
+	if result == nil || result.Modpack == nil {
+		return fmt.Errorf("result and modpack data required for tracking")
+	}
+
+	tracker, err := tracking.NewTracker()
+	if err != nil {
+		return fmt.Errorf("failed to initialize tracker: %w", err)
+	}
+
+	// Extract slug and version from identifier or modpack
+	slug := result.Modpack.Identifier
+	if slug == "" {
+		slug = identifier
+	}
+
+	// Try to determine version - use a default if not available
+	version := result.Modpack.LoaderVersion
+	if version == "" {
+		version = "latest"
+	}
+
+	// Determine bench (source repository)
+	bench := "unknown"
+	if result.Modpack.Source != "" {
+		bench = result.Modpack.Source
+	}
+
+	installation := &tracking.Installation{
+		Slug:           slug,
+		Version:        version,
+		Bench:          bench,
+		Path:           result.DestDir,
+		InstalledAt:    time.Now().UTC(),
+		RecipeSnapshot: createRecipeSnapshot(result.Modpack),
+	}
+
+	if err := tracker.AddInstallation(installation); err != nil {
+		return fmt.Errorf("failed to track installation: %w", err)
+	}
+
+	return nil
 }
