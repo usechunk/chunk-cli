@@ -393,10 +393,11 @@ func TrackInstallation(result *Result, identifier string) error {
 		slug = identifier
 	}
 
-	// Try to determine version - use a default if not available
-	version := result.Modpack.LoaderVersion
-	if version == "" {
-		version = "latest"
+	// Determine version - use MC version + loader combination as default
+	// since modpack struct doesn't have a version field yet
+	version := fmt.Sprintf("%s-%s", result.Modpack.MCVersion, result.Modpack.Loader)
+	if result.Modpack.LoaderVersion != "" {
+		version = fmt.Sprintf("%s-%s-%s", result.Modpack.MCVersion, result.Modpack.Loader, result.Modpack.LoaderVersion)
 	}
 
 	// Determine bench (source repository)
