@@ -5,9 +5,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/alexinslc/chunk/internal/bench"
+	"github.com/alexinslc/chunk/internal/config"
 	"github.com/alexinslc/chunk/internal/converter"
+	"github.com/alexinslc/chunk/internal/search"
 	"github.com/alexinslc/chunk/internal/sources"
 	"github.com/alexinslc/chunk/internal/tracking"
 	"github.com/alexinslc/chunk/internal/ui"
@@ -128,6 +132,17 @@ func (i *Installer) Install(opts *Options) (*Result, error) {
 		return nil, fmt.Errorf("failed to prepare directory: %w", err)
 	}
 	spinner.Success("Directory prepared")
+
+	// For recipes, download and extract the modpack
+	if sourceType == "recipe" {
+		spinner = ui.NewSpinner("Downloading modpack from recipe...")
+		spinner.Start()
+		if err := i.downloadAndExtractRecipe(opts.Identifier, modpack, absDestDir); err != nil {
+			spinner.Error(fmt.Sprintf("Failed to download modpack: %v", err))
+			return nil, fmt.Errorf("failed to download modpack: %w", err)
+		}
+		spinner.Success("Modpack downloaded and extracted")
+	}
 
 	// For local files, extract them first
 	if sourceType == "local" {
@@ -269,6 +284,120 @@ func (i *Installer) prepareDirectory(destDir string, preserveData bool) error {
 func (i *Installer) extractLocalModpack(filePath, destDir string) error {
 	localClient := sources.NewLocalClient()
 	return localClient.Extract(filePath, destDir)
+}
+
+func (i *Installer) downloadAndExtractRecipe(identifier string, modpack *sources.Modpack, destDir string) error {
+	// Get the recipe client
+	recipeClient := sources.NewRecipeClient()
+
+	// Parse identifier to get recipe info
+	benchName := ""
+	recipeName := identifier
+	if strings.Contains(identifier, "::") {
+		parts := strings.SplitN(identifier, "::", 2)
+		if len(parts) == 2 {
+			benchName = parts[0]
+			recipeName = parts[1]
+		}
+	}
+
+	// Find the recipe to get checksum
+	recipe, err := i.findRecipe(recipeName, benchName)
+	if err != nil {
+		return fmt.Errorf("failed to find recipe: %w", err)
+	}
+
+	// Create a temp file for the download
+	tmpFile, err := os.CreateTemp("", "chunk-download-*.mrpack")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	// Download with progress
+	ui.PrintInfo(fmt.Sprintf("Downloading from: %s", modpack.ManifestURL))
+	
+	err = recipeClient.DownloadFile(modpack.ManifestURL, tmpFile, func(downloaded, total int64) {
+		if total > 0 {
+			percent := float64(downloaded) / float64(total) * 100
+			fmt.Printf("\rProgress: %.1f%% (%d MB / %d MB)", percent, downloaded/(1024*1024), total/(1024*1024))
+		}
+	})
+	fmt.Println() // New line after progress
+	
+	if err != nil {
+		return fmt.Errorf("download failed: %w", err)
+	}
+
+	// Verify checksum if not skipped
+	if !i.skipVerify && recipe.SHA256 != "" {
+		ui.PrintInfo("Verifying checksum...")
+		if err := sources.VerifyChecksum(tmpFile.Name(), recipe.SHA256); err != nil {
+			return fmt.Errorf("checksum verification failed: %w", err)
+		}
+		ui.PrintSuccess("Checksum verified")
+	} else if recipe.SHA256 == "" {
+		ui.PrintWarning("No checksum provided in recipe, skipping verification")
+	}
+
+	// Extract the archive
+	ui.PrintInfo("Extracting modpack...")
+	if err := sources.ExtractArchive(tmpFile.Name(), destDir); err != nil {
+		return fmt.Errorf("extraction failed: %w", err)
+	}
+
+	// Save recipe snapshot
+	if err := sources.SaveRecipeSnapshot(recipe, destDir); err != nil {
+		ui.PrintWarning(fmt.Sprintf("Failed to save recipe snapshot: %v", err))
+		// Don't fail the installation if snapshot fails
+	}
+
+	return nil
+}
+
+func (i *Installer) findRecipe(recipeName string, benchFilter string) (*search.Recipe, error) {
+	manager, err := bench.NewManager()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create bench manager: %w", err)
+	}
+
+	benches := manager.List()
+	if len(benches) == 0 {
+		return nil, fmt.Errorf("no benches installed")
+	}
+
+	// Filter to specific bench if requested
+	var searchBenches []config.Bench
+	if benchFilter != "" {
+		for _, b := range benches {
+			if b.Name == benchFilter {
+				searchBenches = []config.Bench{b}
+				break
+			}
+		}
+		if len(searchBenches) == 0 {
+			return nil, fmt.Errorf("bench '%s' not found", benchFilter)
+		}
+	} else {
+		searchBenches = benches
+	}
+
+	// Search for recipe in benches
+	for _, bench := range searchBenches {
+		recipes, err := search.LoadRecipesFromBench(bench.Path, bench.Name)
+		if err != nil {
+			continue
+		}
+
+		for _, recipe := range recipes {
+			if recipe.Slug == recipeName {
+				return recipe, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("recipe '%s' not found", recipeName)
 }
 
 func (i *Installer) installLoader(modpack *sources.Modpack, destDir string) error {

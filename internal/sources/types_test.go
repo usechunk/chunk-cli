@@ -31,14 +31,19 @@ func TestDetectSource(t *testing.T) {
 			want:       "github",
 		},
 		{
-			name:       "chunkhub registry",
+			name:       "recipe registry (default)",
 			identifier: "atm9",
-			want:       "chunkhub",
+			want:       "recipe",
 		},
 		{
-			name:       "another chunkhub",
+			name:       "another recipe",
 			identifier: "create-above-and-beyond",
-			want:       "chunkhub",
+			want:       "recipe",
+		},
+		{
+			name:       "explicit bench::recipe syntax",
+			identifier: "usechunk/recipes::atm9",
+			want:       "recipe",
 		},
 	}
 

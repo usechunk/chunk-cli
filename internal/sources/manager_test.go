@@ -26,6 +26,10 @@ func TestNewSourceManager(t *testing.T) {
 	if manager.local == nil {
 		t.Error("Expected local client to be initialized")
 	}
+
+	if manager.recipe == nil {
+		t.Error("Expected recipe client to be initialized")
+	}
 }
 
 func TestGetClient(t *testing.T) {
@@ -36,6 +40,11 @@ func TestGetClient(t *testing.T) {
 		sourceType string
 		wantErr    bool
 	}{
+		{
+			name:       "recipe client",
+			sourceType: "recipe",
+			wantErr:    false,
+		},
 		{
 			name:       "chunkhub client",
 			sourceType: "chunkhub",
