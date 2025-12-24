@@ -83,7 +83,7 @@ const (
 
 func DetectSource(identifier string) string {
 	// Local file paths
-	if len(identifier) > 0 && identifier[0] == '.' || identifier[0] == '/' {
+	if len(identifier) > 0 && (identifier[0] == '.' || identifier[0] == '/') {
 		return "local"
 	}
 
@@ -98,7 +98,7 @@ func DetectSource(identifier string) string {
 	}
 
 	// GitHub repository (contains / but not ::)
-	if len(identifier) > 0 && (identifier[0] >= 'a' && identifier[0] <= 'z' || identifier[0] >= 'A' && identifier[0] <= 'Z') {
+	if len(identifier) > 0 && ((identifier[0] >= 'a' && identifier[0] <= 'z') || (identifier[0] >= 'A' && identifier[0] <= 'Z')) {
 		for i, ch := range identifier {
 			if ch == '/' {
 				// If it contains / and no ::, it's GitHub

@@ -22,9 +22,28 @@ type RecipeClient struct {
 	manager    *bench.Manager
 }
 
+// ParseRecipeIdentifier splits an identifier into bench name and recipe name
+// Supports formats:
+//   - "recipe" -> ("", "recipe")
+//   - "bench::recipe" -> ("bench", "recipe")
+func ParseRecipeIdentifier(identifier string) (benchName, recipeName string) {
+	if strings.Contains(identifier, "::") {
+		parts := strings.SplitN(identifier, "::", 2)
+		if len(parts) == 2 {
+			return parts[0], parts[1]
+		}
+	}
+	return "", identifier
+}
+
 // NewRecipeClient creates a new recipe client
 func NewRecipeClient() *RecipeClient {
-	manager, _ := bench.NewManager()
+	manager, err := bench.NewManager()
+	if err != nil {
+		// If bench manager fails to initialize, we'll still create the client
+		// but findRecipe will return an appropriate error when called
+		manager = nil
+	}
 	return &RecipeClient{
 		httpClient: &http.Client{
 			Timeout: 10 * time.Minute,
@@ -39,26 +58,17 @@ func NewRecipeClient() *RecipeClient {
 //   - "usechunk/recipes::atm9" - forces specific bench
 func (c *RecipeClient) Fetch(identifier string) (*Modpack, error) {
 	// Parse identifier to extract bench and recipe name
-	benchName := ""
-	recipeName := identifier
-
-	if strings.Contains(identifier, "::") {
-		parts := strings.SplitN(identifier, "::", 2)
-		if len(parts) == 2 {
-			benchName = parts[0]
-			recipeName = parts[1]
-		}
-	}
+	benchName, recipeName := ParseRecipeIdentifier(identifier)
 
 	// Find the recipe
-	recipe, err := c.findRecipe(recipeName, benchName)
+	recipe, err := c.FindRecipe(recipeName, benchName)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate recipe has download URL
 	if recipe.DownloadURL == "" {
-		return nil, fmt.Errorf("recipe '%s' does not have a download_url", recipe.Slug)
+		return nil, fmt.Errorf("recipe \"%s\" does not have a download_url", recipe.Slug)
 	}
 
 	// Convert recipe to Modpack
@@ -102,19 +112,10 @@ func (c *RecipeClient) Search(query string) ([]*ModpackSearchResult, error) {
 // GetVersions returns available versions for a recipe
 func (c *RecipeClient) GetVersions(identifier string) ([]*Version, error) {
 	// Parse identifier
-	benchName := ""
-	recipeName := identifier
-
-	if strings.Contains(identifier, "::") {
-		parts := strings.SplitN(identifier, "::", 2)
-		if len(parts) == 2 {
-			benchName = parts[0]
-			recipeName = parts[1]
-		}
-	}
+	benchName, recipeName := ParseRecipeIdentifier(identifier)
 
 	// Find the recipe
-	recipe, err := c.findRecipe(recipeName, benchName)
+	recipe, err := c.FindRecipe(recipeName, benchName)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +125,7 @@ func (c *RecipeClient) GetVersions(identifier string) ([]*Version, error) {
 		Version:     recipe.Version,
 		MCVersion:   recipe.MCVersion,
 		Loader:      LoaderType(recipe.Loader),
-		ReleaseDate: time.Now().Format("2006-01-02"),
+		ReleaseDate: "",
 		IsStable:    true,
 		DownloadURL: recipe.DownloadURL,
 		SHA256:      recipe.SHA256,
@@ -137,8 +138,8 @@ func (c *RecipeClient) GetVersions(identifier string) ([]*Version, error) {
 	return []*Version{version}, nil
 }
 
-// findRecipe searches for a recipe in local benches
-func (c *RecipeClient) findRecipe(recipeName string, benchFilter string) (*search.Recipe, error) {
+// FindRecipe searches for a recipe in local benches
+func (c *RecipeClient) FindRecipe(recipeName string, benchFilter string) (*search.Recipe, error) {
 	if c.manager == nil {
 		return nil, fmt.Errorf("bench manager not initialized")
 	}
@@ -158,13 +159,13 @@ func (c *RecipeClient) findRecipe(recipeName string, benchFilter string) (*searc
 			}
 		}
 		if len(searchBenches) == 0 {
-			return nil, fmt.Errorf("bench '%s' not found", benchFilter)
+			return nil, fmt.Errorf("bench \"%s\" not found", benchFilter)
 		}
 	} else {
 		searchBenches = benches
 	}
 
-	// Search for recipe in benches (core benches first)
+	// Search for recipe in benches (load recipes once per bench)
 	for _, bench := range searchBenches {
 		recipes, err := search.LoadRecipesFromBench(bench.Path, bench.Name)
 		if err != nil {
@@ -172,21 +173,14 @@ func (c *RecipeClient) findRecipe(recipeName string, benchFilter string) (*searc
 			continue
 		}
 
-		// Look for exact slug match
+		// Look for exact slug match first, then name match
 		for _, recipe := range recipes {
 			if recipe.Slug == recipeName {
 				return recipe, nil
 			}
 		}
-	}
-
-	// If not found by slug, try searching by name
-	for _, bench := range searchBenches {
-		recipes, err := search.LoadRecipesFromBench(bench.Path, bench.Name)
-		if err != nil {
-			continue
-		}
-
+		
+		// If no slug match, try name match (case-insensitive)
 		for _, recipe := range recipes {
 			if strings.EqualFold(recipe.Name, recipeName) {
 				return recipe, nil
@@ -194,7 +188,7 @@ func (c *RecipeClient) findRecipe(recipeName string, benchFilter string) (*searc
 		}
 	}
 
-	return nil, fmt.Errorf("recipe '%s' not found in installed benches", recipeName)
+	return nil, fmt.Errorf("recipe \"%s\" not found in installed benches", recipeName)
 }
 
 // recipeToModpack converts a Recipe to a Modpack

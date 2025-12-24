@@ -5,13 +5,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/alexinslc/chunk/internal/bench"
-	"github.com/alexinslc/chunk/internal/config"
 	"github.com/alexinslc/chunk/internal/converter"
-	"github.com/alexinslc/chunk/internal/search"
 	"github.com/alexinslc/chunk/internal/sources"
 	"github.com/alexinslc/chunk/internal/tracking"
 	"github.com/alexinslc/chunk/internal/ui"
@@ -291,18 +287,10 @@ func (i *Installer) downloadAndExtractRecipe(identifier string, modpack *sources
 	recipeClient := sources.NewRecipeClient()
 
 	// Parse identifier to get recipe info
-	benchName := ""
-	recipeName := identifier
-	if strings.Contains(identifier, "::") {
-		parts := strings.SplitN(identifier, "::", 2)
-		if len(parts) == 2 {
-			benchName = parts[0]
-			recipeName = parts[1]
-		}
-	}
+	benchName, recipeName := sources.ParseRecipeIdentifier(identifier)
 
 	// Find the recipe to get checksum
-	recipe, err := i.findRecipe(recipeName, benchName)
+	recipe, err := recipeClient.FindRecipe(recipeName, benchName)
 	if err != nil {
 		return fmt.Errorf("failed to find recipe: %w", err)
 	}
@@ -318,13 +306,18 @@ func (i *Installer) downloadAndExtractRecipe(identifier string, modpack *sources
 	// Download with progress
 	ui.PrintInfo(fmt.Sprintf("Downloading from: %s", modpack.ManifestURL))
 	
+	// Track progress
+	var lastPercent int
 	err = recipeClient.DownloadFile(modpack.ManifestURL, tmpFile, func(downloaded, total int64) {
 		if total > 0 {
-			percent := float64(downloaded) / float64(total) * 100
-			fmt.Printf("\rProgress: %.1f%% (%d MB / %d MB)", percent, downloaded/(1024*1024), total/(1024*1024))
+			percent := int(float64(downloaded) / float64(total) * 100)
+			// Only print when percentage changes to reduce output noise
+			if percent != lastPercent {
+				lastPercent = percent
+				ui.PrintInfo(fmt.Sprintf("Progress: %d%% (%d MB / %d MB)", percent, downloaded/(1024*1024), total/(1024*1024)))
+			}
 		}
 	})
-	fmt.Println() // New line after progress
 	
 	if err != nil {
 		return fmt.Errorf("download failed: %w", err)
@@ -354,50 +347,6 @@ func (i *Installer) downloadAndExtractRecipe(identifier string, modpack *sources
 	}
 
 	return nil
-}
-
-func (i *Installer) findRecipe(recipeName string, benchFilter string) (*search.Recipe, error) {
-	manager, err := bench.NewManager()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create bench manager: %w", err)
-	}
-
-	benches := manager.List()
-	if len(benches) == 0 {
-		return nil, fmt.Errorf("no benches installed")
-	}
-
-	// Filter to specific bench if requested
-	var searchBenches []config.Bench
-	if benchFilter != "" {
-		for _, b := range benches {
-			if b.Name == benchFilter {
-				searchBenches = []config.Bench{b}
-				break
-			}
-		}
-		if len(searchBenches) == 0 {
-			return nil, fmt.Errorf("bench '%s' not found", benchFilter)
-		}
-	} else {
-		searchBenches = benches
-	}
-
-	// Search for recipe in benches
-	for _, bench := range searchBenches {
-		recipes, err := search.LoadRecipesFromBench(bench.Path, bench.Name)
-		if err != nil {
-			continue
-		}
-
-		for _, recipe := range recipes {
-			if recipe.Slug == recipeName {
-				return recipe, nil
-			}
-		}
-	}
-
-	return nil, fmt.Errorf("recipe '%s' not found", recipeName)
 }
 
 func (i *Installer) installLoader(modpack *sources.Modpack, destDir string) error {
