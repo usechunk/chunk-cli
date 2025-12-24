@@ -7,11 +7,14 @@ Chunk is a universal CLI tool for deploying and managing modded Minecraft server
 ## Quick Start
 
 ```bash
-# Search for modpacks
-chunk search
+# Search for modpacks in local recipe benches
+chunk search "all the mods"
 
-# Install a modpack from ChunkHub
+# Install a modpack from local recipes
 chunk install atm9
+
+# Install from a specific bench
+chunk install usechunk/recipes::atm9
 
 # Install from GitHub (shorthand)
 chunk install alexinslc/my-cool-mod
@@ -24,6 +27,11 @@ chunk upgrade vault-hunters
 
 # Compare versions
 chunk diff ./old-server ./new-modpack
+
+# Manage recipe benches
+chunk bench add usechunk/recipes
+chunk bench list
+chunk bench update usechunk/recipes
 ```
 
 ## Installation
@@ -52,32 +60,59 @@ make install
 Install a modpack server to the current directory or specified location.
 
 **Arguments:**
-- `modpack` - Modpack identifier (ChunkHub slug, GitHub repo, or local file)
+- `modpack` - Modpack identifier:
+  - Recipe name: `atm9` (searches all installed benches)
+  - Explicit bench: `usechunk/recipes::atm9`
+  - GitHub repo: `alexinslc/my-modpack`
+  - Modrinth: `modrinth:modpack-slug`
+  - Local file: `./modpack.mrpack`
 
 **Flags:**
-- `--dir <path>` - Installation directory (default: current directory)
-- `--skip-java-check` - Skip Java version validation
+- `--dir <path>` - Installation directory (default: ./server)
+- `--skip-verify` - Skip checksum verification (not recommended)
 
 **Examples:**
 ```bash
-# Install from ChunkHub
+# Install from local recipe bench
 chunk install atm9 --dir /opt/minecraft
+
+# Install from specific bench
+chunk install usechunk/recipes::atm9
 
 # Install from GitHub
 chunk install alexinslc/my-modpack
 
 # Install from local file
 chunk install ./modpack.mrpack
+
+# Install without checksum verification
+chunk install atm9 --skip-verify
 ```
+
+**Recipe Installation:**
+
+When installing from recipes, chunk will:
+1. Search all installed benches for the recipe
+2. Download the modpack from the recipe's download URL
+3. Verify the SHA-256 checksum
+4. Extract files to the installation directory
+5. Create `.chunk-recipe.json` to track the source
+6. Install the mod loader and generate start scripts
 
 ### `chunk search [query]`
 
-Search for modpacks in the ChunkHub registry.
+Search for modpacks in local recipe benches.
+
+**Flags:**
+- `--bench <name>` - Limit search to a specific bench
 
 **Examples:**
 ```bash
-chunk search
+# Search all benches
 chunk search "all the mods"
+
+# Search specific bench
+chunk search atm --bench usechunk/recipes
 ```
 
 ### `chunk upgrade <modpack>`
@@ -95,6 +130,52 @@ Upgrade an existing server installation to a new version while preserving world 
 ```bash
 chunk upgrade atm9 --dir /opt/minecraft
 ```
+
+### `chunk bench`
+
+Manage recipe benches (repositories containing modpack recipes).
+
+**Subcommands:**
+- `add <name> [url]` - Add a new bench
+- `remove <name>` - Remove a bench
+- `list` - List all installed benches
+- `update [name]` - Update bench(es) to latest recipes
+- `info <name>` - Show detailed bench information
+
+**Examples:**
+```bash
+# Add the core recipes bench
+chunk bench add usechunk/recipes
+
+# Add a custom bench
+chunk bench add my-bench https://github.com/user/recipes
+
+# List all benches
+chunk bench list
+
+# Update all benches
+chunk bench update
+
+# Update specific bench
+chunk bench update usechunk/recipes
+
+# Show bench info
+chunk bench info usechunk/recipes
+
+# Remove a bench
+chunk bench remove my-bench
+```
+
+**About Benches:**
+
+Benches are Git repositories containing recipe files in a `Recipes/` directory. Each recipe is a JSON or YAML file that describes:
+- Modpack metadata (name, version, description)
+- Minecraft and mod loader versions
+- Download URL for the modpack archive
+- SHA-256 checksum for verification
+- System requirements (RAM, disk space, Java version)
+
+The core bench (`usechunk/recipes`) is automatically added on first run unless `CHUNK_NO_AUTO_BENCH=1` is set.
 
 ### `chunk diff <old> <new>`
 
