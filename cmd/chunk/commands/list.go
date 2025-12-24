@@ -100,11 +100,11 @@ func displayList(installations []*tracking.Installation, checkOutdated bool) err
 	fmt.Printf("==> Installed modpacks (%d)\n", len(installations))
 	fmt.Println()
 
-	// Get bench manager for checking outdated status
-	var benchManager *bench.Manager
+	// Pre-load all recipes once if checking for outdated
+	var recipeCache map[string]*search.Recipe
 	if checkOutdated {
 		var err error
-		benchManager, err = bench.NewManager()
+		recipeCache, err = loadAllRecipes()
 		if err != nil {
 			// Don't fail completely, just skip outdated check
 			fmt.Printf("Warning: Could not check for updates: %v\n", err)
@@ -117,8 +117,8 @@ func displayList(installations []*tracking.Installation, checkOutdated bool) err
 		fmt.Printf("%s (%s)", inst.Slug, inst.Version)
 
 		// Check if outdated
-		if checkOutdated && benchManager != nil {
-			if isOutdated, latestVersion := checkIfOutdated(inst, benchManager); isOutdated {
+		if checkOutdated && recipeCache != nil {
+			if isOutdated, latestVersion := isInstallationOutdated(inst, recipeCache); isOutdated {
 				fmt.Printf(" [outdated: %s available]", latestVersion)
 			}
 		}
@@ -126,7 +126,7 @@ func displayList(installations []*tracking.Installation, checkOutdated bool) err
 		fmt.Println()
 
 		// Display installation path
-		fmt.Printf("  Installed: %s\n", inst.Path)
+		fmt.Printf("  Path: %s\n", inst.Path)
 
 		// Display bench source
 		if inst.Bench != "" {
@@ -195,35 +195,80 @@ func formatRelativeTime(t time.Time) string {
 	}
 }
 
-// checkIfOutdated checks if an installation has a newer version available
-func checkIfOutdated(inst *tracking.Installation, benchManager *bench.Manager) (bool, string) {
-	if benchManager == nil {
-		return false, ""
+// loadAllRecipes loads all recipes from all benches and caches them by slug
+// Returns a map where the key is "bench:slug" to handle same slug in different benches
+func loadAllRecipes() (map[string]*search.Recipe, error) {
+	manager, err := bench.NewManager()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize bench manager: %w", err)
 	}
 
-	benches := benchManager.List()
+	benches := manager.List()
+	recipeCache := make(map[string]*search.Recipe)
 
-	// Find the recipe in benches
 	for _, b := range benches {
-		// Check if this is the bench the installation came from
-		if inst.Bench != "" && b.Name != inst.Bench {
-			continue
-		}
-
 		recipes, err := search.LoadRecipesFromBench(b.Path, b.Name)
 		if err != nil {
 			continue
 		}
 
 		for _, recipe := range recipes {
-			// Match by slug
-			if strings.EqualFold(recipe.Slug, inst.Slug) {
-				// Compare versions
-				if recipe.Version != "" && recipe.Version != inst.Version {
-					return true, recipe.Version
-				}
+			// Store with both bench-specific and generic keys
+			// Bench-specific key for when bench is known
+			benchKey := fmt.Sprintf("%s:%s", b.Name, strings.ToLower(recipe.Slug))
+			recipeCache[benchKey] = recipe
+
+			// Generic key only if not already set (first bench wins for generic lookup)
+			genericKey := strings.ToLower(recipe.Slug)
+			if _, exists := recipeCache[genericKey]; !exists {
+				recipeCache[genericKey] = recipe
 			}
 		}
+	}
+
+	return recipeCache, nil
+}
+
+// isInstallationOutdated checks if an installation has a newer version available
+// Uses pre-loaded recipe cache for O(1) lookups
+func isInstallationOutdated(inst *tracking.Installation, recipeCache map[string]*search.Recipe) (bool, string) {
+	if recipeCache == nil {
+		return false, ""
+	}
+
+	var recipe *search.Recipe
+
+	// First try to find by bench-specific key if bench is known
+	if inst.Bench != "" {
+		benchKey := fmt.Sprintf("%s:%s", inst.Bench, strings.ToLower(inst.Slug))
+		recipe = recipeCache[benchKey]
+	}
+
+	// Fall back to generic key if not found or bench not specified
+	if recipe == nil {
+		genericKey := strings.ToLower(inst.Slug)
+		recipe = recipeCache[genericKey]
+	}
+
+	// No recipe found
+	if recipe == nil {
+		return false, ""
+	}
+
+	// Compare versions with proper trimming
+	installedVersion := strings.TrimSpace(inst.Version)
+	recipeVersion := strings.TrimSpace(recipe.Version)
+
+	// If recipe has no version info, can't determine if outdated
+	if recipeVersion == "" {
+		return false, ""
+	}
+
+	// Simple string comparison after trimming
+	// Note: This doesn't use semantic versioning, but handles basic cases
+	// For proper semver, would need a library like github.com/Masterminds/semver
+	if recipeVersion != installedVersion {
+		return true, recipeVersion
 	}
 
 	return false, ""

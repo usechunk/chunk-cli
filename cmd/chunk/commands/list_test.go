@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alexinslc/chunk/internal/search"
 	"github.com/alexinslc/chunk/internal/tracking"
 )
 
@@ -303,9 +304,8 @@ func TestDisplayListBasic(t *testing.T) {
 	}
 }
 
-func TestCheckIfOutdated(t *testing.T) {
-	// This test requires a bench setup which is complex to mock
-	// For now, we'll just ensure the function doesn't panic with nil inputs
+func TestIsInstallationOutdated(t *testing.T) {
+	// This test validates the function with a nil cache
 	inst := &tracking.Installation{
 		Slug:        "test-modpack",
 		Version:     "1.0.0",
@@ -314,13 +314,62 @@ func TestCheckIfOutdated(t *testing.T) {
 		InstalledAt: time.Now(),
 	}
 
-	// Test with nil bench manager (should return false, "")
-	isOutdated, version := checkIfOutdated(inst, nil)
+	// Test with nil recipe cache (should return false, "")
+	isOutdated, version := isInstallationOutdated(inst, nil)
 	if isOutdated {
-		t.Error("Expected false for nil bench manager")
+		t.Error("Expected false for nil recipe cache")
 	}
 	if version != "" {
 		t.Errorf("Expected empty version, got %s", version)
+	}
+
+	// Test with empty cache
+	emptyCache := make(map[string]*search.Recipe)
+	isOutdated, version = isInstallationOutdated(inst, emptyCache)
+	if isOutdated {
+		t.Error("Expected false for empty cache")
+	}
+	if version != "" {
+		t.Errorf("Expected empty version, got %s", version)
+	}
+
+	// Test with matching version
+	cache := map[string]*search.Recipe{
+		"test/bench:test-modpack": {
+			Slug:    "test-modpack",
+			Version: "1.0.0",
+		},
+	}
+	isOutdated, version = isInstallationOutdated(inst, cache)
+	if isOutdated {
+		t.Error("Expected false when versions match")
+	}
+	if version != "" {
+		t.Errorf("Expected empty version, got %s", version)
+	}
+
+	// Test with newer version available
+	cache["test/bench:test-modpack"] = &search.Recipe{
+		Slug:    "test-modpack",
+		Version: "2.0.0",
+	}
+	isOutdated, version = isInstallationOutdated(inst, cache)
+	if !isOutdated {
+		t.Error("Expected true when newer version available")
+	}
+	if version != "2.0.0" {
+		t.Errorf("Expected version 2.0.0, got %s", version)
+	}
+
+	// Test with whitespace in versions
+	inst.Version = " 1.0.0 "
+	cache["test/bench:test-modpack"] = &search.Recipe{
+		Slug:    "test-modpack",
+		Version: " 1.0.0 ",
+	}
+	isOutdated, version = isInstallationOutdated(inst, cache)
+	if isOutdated {
+		t.Error("Expected false when versions match after trimming whitespace")
 	}
 }
 
