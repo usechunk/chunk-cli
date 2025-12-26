@@ -33,6 +33,7 @@ type Recipe struct {
 	License          string   `json:"license,omitempty" yaml:"license,omitempty"`
 	DownloadURL      string   `json:"download_url,omitempty" yaml:"download_url,omitempty"`
 	DownloadSizeMB   int      `json:"download_size_mb,omitempty" yaml:"download_size_mb,omitempty"`
+	SHA256           string   `json:"sha256,omitempty" yaml:"sha256,omitempty"`
 }
 
 // SearchResult represents a recipe match with relevance score

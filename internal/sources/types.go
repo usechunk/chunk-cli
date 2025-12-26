@@ -2,6 +2,7 @@ package sources
 
 import (
 	"errors"
+	"strings"
 )
 
 var (
@@ -81,17 +82,26 @@ const (
 )
 
 func DetectSource(identifier string) string {
-	if len(identifier) > 0 && identifier[0] == '.' || identifier[0] == '/' {
+	// Local file paths
+	if len(identifier) > 0 && (identifier[0] == '.' || identifier[0] == '/') {
 		return "local"
 	}
 
+	// Modrinth prefix
 	if len(identifier) > 9 && identifier[:9] == "modrinth:" {
 		return "modrinth"
 	}
 
-	if len(identifier) > 0 && (identifier[0] >= 'a' && identifier[0] <= 'z' || identifier[0] >= 'A' && identifier[0] <= 'Z') {
+	// Explicit bench::recipe syntax (e.g., usechunk/recipes::atm9)
+	if strings.Contains(identifier, "::") {
+		return "recipe"
+	}
+
+	// GitHub repository (contains / but not ::)
+	if len(identifier) > 0 && ((identifier[0] >= 'a' && identifier[0] <= 'z') || (identifier[0] >= 'A' && identifier[0] <= 'Z')) {
 		for i, ch := range identifier {
 			if ch == '/' {
+				// If it contains / and no ::, it's GitHub
 				return "github"
 			}
 			if i > 50 {
@@ -100,5 +110,7 @@ func DetectSource(identifier string) string {
 		}
 	}
 
-	return "chunkhub"
+	// Default to recipe (searches local benches first)
+	// This replaces chunkhub as the default
+	return "recipe"
 }

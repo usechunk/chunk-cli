@@ -9,6 +9,7 @@ type SourceManager struct {
 	github   *GitHubClient
 	modrinth *ModrinthClient
 	local    *LocalClient
+	recipe   *RecipeClient
 }
 
 func NewSourceManager() *SourceManager {
@@ -17,6 +18,7 @@ func NewSourceManager() *SourceManager {
 		github:   NewGitHubClient(),
 		modrinth: NewModrinthClient(),
 		local:    NewLocalClient(),
+		recipe:   NewRecipeClient(),
 	}
 }
 
@@ -24,6 +26,8 @@ func (s *SourceManager) Fetch(identifier string) (*Modpack, error) {
 	sourceType := DetectSource(identifier)
 
 	switch sourceType {
+	case "recipe":
+		return s.recipe.Fetch(identifier)
 	case "chunkhub":
 		return s.chunkhub.Fetch(identifier)
 	case "github":
@@ -39,6 +43,12 @@ func (s *SourceManager) Fetch(identifier string) (*Modpack, error) {
 
 func (s *SourceManager) Search(query string) ([]*ModpackSearchResult, error) {
 	var allResults []*ModpackSearchResult
+
+	// Search recipes first (local benches)
+	recipeResults, err := s.recipe.Search(query)
+	if err == nil {
+		allResults = append(allResults, recipeResults...)
+	}
 
 	chunkHubResults, err := s.chunkhub.Search(query)
 	if err == nil {
@@ -66,6 +76,8 @@ func (s *SourceManager) GetVersions(identifier string) ([]*Version, error) {
 	sourceType := DetectSource(identifier)
 
 	switch sourceType {
+	case "recipe":
+		return s.recipe.GetVersions(identifier)
 	case "chunkhub":
 		return s.chunkhub.GetVersions(identifier)
 	case "github":
@@ -81,6 +93,8 @@ func (s *SourceManager) GetVersions(identifier string) ([]*Version, error) {
 
 func (s *SourceManager) GetClient(sourceType string) (ModpackSource, error) {
 	switch sourceType {
+	case "recipe":
+		return s.recipe, nil
 	case "chunkhub":
 		return s.chunkhub, nil
 	case "github":
