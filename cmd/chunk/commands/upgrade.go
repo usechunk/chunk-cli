@@ -135,11 +135,13 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 		currentLoader, _ := currentRecipe["loader"].(string)
 		currentLoaderVersion, _ := currentRecipe["loader_version"].(string)
 
+		newLoaderStr := string(newModpack.Loader)
+
 		if currentMCVersion != "" && currentMCVersion != newModpack.MCVersion {
 			fmt.Printf("   ⚠️  Minecraft version changing: %s → %s\n", currentMCVersion, newModpack.MCVersion)
 		}
-		if currentLoader != "" && currentLoader != string(newModpack.Loader) {
-			fmt.Printf("   ⚠️  Loader type changing: %s → %s\n", currentLoader, newModpack.Loader)
+		if currentLoader != "" && currentLoader != newLoaderStr {
+			fmt.Printf("   ⚠️  Loader type changing: %s → %s\n", currentLoader, newLoaderStr)
 		}
 		if currentLoaderVersion != "" && currentLoaderVersion != newModpack.LoaderVersion {
 			fmt.Printf("   📦 Loader version: %s → %s\n", currentLoaderVersion, newModpack.LoaderVersion)
@@ -316,6 +318,11 @@ func getCurrentVersion(serverDir string) (string, map[string]interface{}, error)
 
 // getModpackVersion extracts a version string from a modpack
 func getModpackVersion(modpack *sources.Modpack) string {
+	// Validate that we have required fields
+	if modpack.MCVersion == "" || modpack.Loader == "" {
+		return "unknown"
+	}
+
 	// For now, use MC version + loader as version
 	// In the future, recipes should have explicit version fields
 	return fmt.Sprintf("%s-%s", modpack.MCVersion, modpack.Loader)
