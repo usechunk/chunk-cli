@@ -411,7 +411,6 @@ func TestTrackInstallationNilModpack(t *testing.T) {
 	}
 }
 
-
 func TestInstallerExtractLocalModpack(t *testing.T) {
 	installer := NewInstaller()
 

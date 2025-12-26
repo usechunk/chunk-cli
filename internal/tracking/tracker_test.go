@@ -66,7 +66,7 @@ func TestTrackerSaveAndLoad(t *testing.T) {
 				Path:        "/opt/minecraft/test",
 				InstalledAt: time.Now().UTC(),
 				RecipeSnapshot: map[string]interface{}{
-					"name": "Test Modpack",
+					"name":       "Test Modpack",
 					"mc_version": "1.20.1",
 				},
 			},
@@ -200,11 +200,11 @@ func TestTrackerRemoveInstallation(t *testing.T) {
 
 	// Add installation
 	installation := &Installation{
-		Slug:        "test-modpack",
-		Version:     "1.0.0",
-		Bench:       "usechunk/recipes",
-		Path:        "/opt/minecraft/test",
-		InstalledAt: time.Now().UTC(),
+		Slug:           "test-modpack",
+		Version:        "1.0.0",
+		Bench:          "usechunk/recipes",
+		Path:           "/opt/minecraft/test",
+		InstalledAt:    time.Now().UTC(),
 		RecipeSnapshot: map[string]interface{}{},
 	}
 
@@ -244,11 +244,11 @@ func TestTrackerGetInstallation(t *testing.T) {
 
 	// Add installation
 	installation := &Installation{
-		Slug:        "test-modpack",
-		Version:     "1.0.0",
-		Bench:       "usechunk/recipes",
-		Path:        "/opt/minecraft/test",
-		InstalledAt: time.Now().UTC(),
+		Slug:           "test-modpack",
+		Version:        "1.0.0",
+		Bench:          "usechunk/recipes",
+		Path:           "/opt/minecraft/test",
+		InstalledAt:    time.Now().UTC(),
 		RecipeSnapshot: map[string]interface{}{},
 	}
 
@@ -293,19 +293,19 @@ func TestTrackerListInstallations(t *testing.T) {
 	// Add multiple installations
 	installations := []*Installation{
 		{
-			Slug:        "modpack-1",
-			Version:     "1.0.0",
-			Bench:       "usechunk/recipes",
-			Path:        "/opt/minecraft/pack1",
-			InstalledAt: time.Now().UTC(),
+			Slug:           "modpack-1",
+			Version:        "1.0.0",
+			Bench:          "usechunk/recipes",
+			Path:           "/opt/minecraft/pack1",
+			InstalledAt:    time.Now().UTC(),
 			RecipeSnapshot: map[string]interface{}{},
 		},
 		{
-			Slug:        "modpack-2",
-			Version:     "2.0.0",
-			Bench:       "usechunk/recipes",
-			Path:        "/opt/minecraft/pack2",
-			InstalledAt: time.Now().UTC(),
+			Slug:           "modpack-2",
+			Version:        "2.0.0",
+			Bench:          "usechunk/recipes",
+			Path:           "/opt/minecraft/pack2",
+			InstalledAt:    time.Now().UTC(),
 			RecipeSnapshot: map[string]interface{}{},
 		},
 	}
@@ -333,11 +333,11 @@ func TestTrackerUpdateInstallation(t *testing.T) {
 
 	// Add installation
 	installation := &Installation{
-		Slug:        "test-modpack",
-		Version:     "1.0.0",
-		Bench:       "usechunk/recipes",
-		Path:        "/opt/minecraft/test",
-		InstalledAt: time.Now().UTC(),
+		Slug:           "test-modpack",
+		Version:        "1.0.0",
+		Bench:          "usechunk/recipes",
+		Path:           "/opt/minecraft/test",
+		InstalledAt:    time.Now().UTC(),
 		RecipeSnapshot: map[string]interface{}{},
 	}
 
@@ -372,11 +372,11 @@ func TestTrackerUpdateInstallationNotFound(t *testing.T) {
 
 	// Try to update non-existent installation
 	installation := &Installation{
-		Slug:        "test-modpack",
-		Version:     "1.0.0",
-		Bench:       "usechunk/recipes",
-		Path:        "/non/existent/path",
-		InstalledAt: time.Now().UTC(),
+		Slug:           "test-modpack",
+		Version:        "1.0.0",
+		Bench:          "usechunk/recipes",
+		Path:           "/non/existent/path",
+		InstalledAt:    time.Now().UTC(),
 		RecipeSnapshot: map[string]interface{}{},
 	}
 
@@ -396,10 +396,10 @@ func TestValidateInstallation(t *testing.T) {
 		{
 			name: "valid installation",
 			installation: &Installation{
-				Slug:        "test",
-				Version:     "1.0.0",
-				Path:        "/path",
-				InstalledAt: time.Now(),
+				Slug:           "test",
+				Version:        "1.0.0",
+				Path:           "/path",
+				InstalledAt:    time.Now(),
 				RecipeSnapshot: map[string]interface{}{},
 			},
 			expectError: false,
@@ -407,9 +407,9 @@ func TestValidateInstallation(t *testing.T) {
 		{
 			name: "missing slug",
 			installation: &Installation{
-				Version:     "1.0.0",
-				Path:        "/path",
-				InstalledAt: time.Now(),
+				Version:        "1.0.0",
+				Path:           "/path",
+				InstalledAt:    time.Now(),
 				RecipeSnapshot: map[string]interface{}{},
 			},
 			expectError:   true,
@@ -418,9 +418,9 @@ func TestValidateInstallation(t *testing.T) {
 		{
 			name: "missing version",
 			installation: &Installation{
-				Slug:        "test",
-				Path:        "/path",
-				InstalledAt: time.Now(),
+				Slug:           "test",
+				Path:           "/path",
+				InstalledAt:    time.Now(),
 				RecipeSnapshot: map[string]interface{}{},
 			},
 			expectError:   true,
@@ -429,9 +429,9 @@ func TestValidateInstallation(t *testing.T) {
 		{
 			name: "missing path",
 			installation: &Installation{
-				Slug:        "test",
-				Version:     "1.0.0",
-				InstalledAt: time.Now(),
+				Slug:           "test",
+				Version:        "1.0.0",
+				InstalledAt:    time.Now(),
 				RecipeSnapshot: map[string]interface{}{},
 			},
 			expectError:   true,
@@ -440,9 +440,9 @@ func TestValidateInstallation(t *testing.T) {
 		{
 			name: "missing installed_at",
 			installation: &Installation{
-				Slug:        "test",
-				Version:     "1.0.0",
-				Path:        "/path",
+				Slug:           "test",
+				Version:        "1.0.0",
+				Path:           "/path",
 				RecipeSnapshot: map[string]interface{}{},
 			},
 			expectError:   true,
@@ -494,20 +494,20 @@ func TestTrackerMultipleSameRecipeDifferentPaths(t *testing.T) {
 
 	// Add same modpack at two different paths
 	installation1 := &Installation{
-		Slug:        "atm9",
-		Version:     "0.3.2",
-		Bench:       "usechunk/recipes",
-		Path:        "/opt/minecraft/atm9-server1",
-		InstalledAt: time.Now().UTC(),
+		Slug:           "atm9",
+		Version:        "0.3.2",
+		Bench:          "usechunk/recipes",
+		Path:           "/opt/minecraft/atm9-server1",
+		InstalledAt:    time.Now().UTC(),
 		RecipeSnapshot: map[string]interface{}{},
 	}
 
 	installation2 := &Installation{
-		Slug:        "atm9",
-		Version:     "0.3.2",
-		Bench:       "usechunk/recipes",
-		Path:        "/opt/minecraft/atm9-server2",
-		InstalledAt: time.Now().UTC(),
+		Slug:           "atm9",
+		Version:        "0.3.2",
+		Bench:          "usechunk/recipes",
+		Path:           "/opt/minecraft/atm9-server2",
+		InstalledAt:    time.Now().UTC(),
 		RecipeSnapshot: map[string]interface{}{},
 	}
 

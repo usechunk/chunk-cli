@@ -42,6 +42,7 @@ Examples:
 func init() {
 	rootCmd.SetVersionTemplate(`{{printf "chunk version %s\n" .Version}}`)
 	rootCmd.AddCommand(commands.InstallCmd)
+	rootCmd.AddCommand(commands.UninstallCmd)
 	rootCmd.AddCommand(commands.SearchCmd)
 	rootCmd.AddCommand(commands.UpgradeCmd)
 	rootCmd.AddCommand(commands.DiffCmd)

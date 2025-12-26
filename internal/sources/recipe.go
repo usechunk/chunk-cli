@@ -179,7 +179,7 @@ func (c *RecipeClient) FindRecipe(recipeName string, benchFilter string) (*searc
 				return recipe, nil
 			}
 		}
-		
+
 		// If no slug match, try name match (case-insensitive)
 		for _, recipe := range recipes {
 			if strings.EqualFold(recipe.Name, recipeName) {
