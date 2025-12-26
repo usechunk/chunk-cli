@@ -62,7 +62,7 @@ func (u *UpgradeManager) UpgradeModpack(serverDir, newPackSource string, preserv
 		dstPath := filepath.Join(serverDir, worldPath)
 
 		if _, err := os.Stat(srcPath); err == nil {
-			if err := u.preserver.copyDir(srcPath, dstPath); err != nil {
+			if err := u.preserver.CopyDir(srcPath, dstPath); err != nil {
 				fmt.Printf("⚠️  Warning: Failed to restore %s: %v\n", worldPath, err)
 			} else {
 				fmt.Printf("✓ Restored: %s\n", worldPath)
@@ -84,7 +84,7 @@ func (u *UpgradeManager) UpgradeModpack(serverDir, newPackSource string, preserv
 		dstPath := filepath.Join(serverDir, configFile)
 
 		if _, err := os.Stat(srcPath); err == nil {
-			if err := u.preserver.copyFile(srcPath, dstPath); err != nil {
+			if err := u.preserver.CopyFile(srcPath, dstPath); err != nil {
 				fmt.Printf("⚠️  Warning: Failed to restore %s: %v\n", configFile, err)
 			} else {
 				fmt.Printf("✓ Restored: %s\n", configFile)

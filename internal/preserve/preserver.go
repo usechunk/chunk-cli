@@ -67,11 +67,11 @@ func (p *DataPreserver) BackupBeforeUpgrade(serverDir string) (string, error) {
 		}
 
 		if info.IsDir() {
-			if err := p.copyDir(srcPath, dstPath); err != nil {
+			if err := p.CopyDir(srcPath, dstPath); err != nil {
 				return "", fmt.Errorf("failed to backup %s: %w", path, err)
 			}
 		} else {
-			if err := p.copyFile(srcPath, dstPath); err != nil {
+			if err := p.CopyFile(srcPath, dstPath); err != nil {
 				return "", fmt.Errorf("failed to backup %s: %w", path, err)
 			}
 		}
@@ -93,11 +93,11 @@ func (p *DataPreserver) RestoreFromBackup(serverDir, backupDir string) error {
 		dstPath := filepath.Join(serverDir, entry.Name())
 
 		if entry.IsDir() {
-			if err := p.copyDir(srcPath, dstPath); err != nil {
+			if err := p.CopyDir(srcPath, dstPath); err != nil {
 				return fmt.Errorf("failed to restore %s: %w", entry.Name(), err)
 			}
 		} else {
-			if err := p.copyFile(srcPath, dstPath); err != nil {
+			if err := p.CopyFile(srcPath, dstPath); err != nil {
 				return fmt.Errorf("failed to restore %s: %w", entry.Name(), err)
 			}
 		}
@@ -108,7 +108,8 @@ func (p *DataPreserver) RestoreFromBackup(serverDir, backupDir string) error {
 	return nil
 }
 
-func (p *DataPreserver) copyFile(src, dst string) error {
+// CopyFile copies a file from src to dst (exported for use in upgrade command)
+func (p *DataPreserver) CopyFile(src, dst string) error {
 	dstDir := filepath.Dir(dst)
 	if err := os.MkdirAll(dstDir, 0755); err != nil {
 		return err
@@ -122,7 +123,8 @@ func (p *DataPreserver) copyFile(src, dst string) error {
 	return os.WriteFile(dst, data, 0644)
 }
 
-func (p *DataPreserver) copyDir(src, dst string) error {
+// CopyDir recursively copies a directory from src to dst (exported for use in upgrade command)
+func (p *DataPreserver) CopyDir(src, dst string) error {
 	if err := os.MkdirAll(dst, 0755); err != nil {
 		return err
 	}
@@ -137,11 +139,11 @@ func (p *DataPreserver) copyDir(src, dst string) error {
 		dstPath := filepath.Join(dst, entry.Name())
 
 		if entry.IsDir() {
-			if err := p.copyDir(srcPath, dstPath); err != nil {
+			if err := p.CopyDir(srcPath, dstPath); err != nil {
 				return err
 			}
 		} else {
-			if err := p.copyFile(srcPath, dstPath); err != nil {
+			if err := p.CopyFile(srcPath, dstPath); err != nil {
 				return err
 			}
 		}
