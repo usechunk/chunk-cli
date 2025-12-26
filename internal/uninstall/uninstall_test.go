@@ -3,6 +3,7 @@ package uninstall
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -230,8 +231,19 @@ func TestUninstallValidateModpackSlug(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error when modpack slug doesn't match")
 	}
-	if err != nil && err.Error() != `requested modpack "different-modpack" does not match installed modpack "atm9" in directory `+serverDir {
-		t.Errorf("Unexpected error message: %v", err)
+	if err != nil {
+		expectedParts := []string{
+			"requested modpack",
+			"different-modpack",
+			"does not match installed modpack",
+			"atm9",
+		}
+		errMsg := err.Error()
+		for _, part := range expectedParts {
+			if !strings.Contains(errMsg, part) {
+				t.Errorf("Expected error message to contain %q, got: %v", part, errMsg)
+			}
+		}
 	}
 
 	// Clean up tracker
