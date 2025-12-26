@@ -305,7 +305,7 @@ func (i *Installer) downloadAndExtractRecipe(identifier string, modpack *sources
 
 	// Download with progress
 	ui.PrintInfo(fmt.Sprintf("Downloading from: %s", modpack.ManifestURL))
-	
+
 	// Track progress
 	var lastPercent int
 	err = recipeClient.DownloadFile(modpack.ManifestURL, tmpFile, func(downloaded, total int64) {
@@ -318,7 +318,7 @@ func (i *Installer) downloadAndExtractRecipe(identifier string, modpack *sources
 			}
 		}
 	})
-	
+
 	if err != nil {
 		return fmt.Errorf("download failed: %w", err)
 	}
@@ -411,16 +411,16 @@ func (i *Installer) generateScripts(modpack *sources.Modpack, destDir string) er
 // createRecipeSnapshot converts modpack data to a recipe snapshot for tracking
 func createRecipeSnapshot(modpack *sources.Modpack) map[string]interface{} {
 	snapshot := map[string]interface{}{
-		"name":           modpack.Name,
-		"identifier":     modpack.Identifier,
-		"description":    modpack.Description,
-		"mc_version":     modpack.MCVersion,
-		"loader":         string(modpack.Loader),
-		"loader_version": modpack.LoaderVersion,
-		"author":         modpack.Author,
-		"source":         modpack.Source,
+		"name":            modpack.Name,
+		"identifier":      modpack.Identifier,
+		"description":     modpack.Description,
+		"mc_version":      modpack.MCVersion,
+		"loader":          string(modpack.Loader),
+		"loader_version":  modpack.LoaderVersion,
+		"author":          modpack.Author,
+		"source":          modpack.Source,
 		"recommended_ram": modpack.RecommendedRAM,
-		"manifest_url":   modpack.ManifestURL,
+		"manifest_url":    modpack.ManifestURL,
 	}
 
 	if len(modpack.Dependencies) > 0 {

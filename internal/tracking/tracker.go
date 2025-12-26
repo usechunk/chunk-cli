@@ -10,12 +10,12 @@ import (
 
 // Installation represents a single modpack installation record
 type Installation struct {
-	Slug            string                 `json:"slug"`
-	Version         string                 `json:"version"`
-	Bench           string                 `json:"bench"`
-	Path            string                 `json:"path"`
-	InstalledAt     time.Time              `json:"installed_at"`
-	RecipeSnapshot  map[string]interface{} `json:"recipe_snapshot"`
+	Slug           string                 `json:"slug"`
+	Version        string                 `json:"version"`
+	Bench          string                 `json:"bench"`
+	Path           string                 `json:"path"`
+	InstalledAt    time.Time              `json:"installed_at"`
+	RecipeSnapshot map[string]interface{} `json:"recipe_snapshot"`
 }
 
 // InstallationRegistry contains all tracked installations

@@ -131,6 +131,64 @@ Upgrade an existing server installation to a new version while preserving world 
 chunk upgrade atm9 --dir /opt/minecraft
 ```
 
+### `chunk uninstall <modpack>`
+
+Uninstall a modpack server installation and optionally preserve world data.
+
+**Arguments:**
+- `modpack` - Modpack identifier to uninstall
+
+**Flags:**
+- `--dir <path>` - Server directory to uninstall from (default: ./server)
+- `--keep-worlds` - Preserve world and player data
+- `--force` - Skip confirmation prompts (respects --keep-worlds)
+
+**Examples:**
+```bash
+# Interactive uninstall with prompt for world preservation
+chunk uninstall atm9
+
+# Keep world data without prompt
+chunk uninstall atm9 --keep-worlds
+
+# Force uninstall without confirmation prompts
+chunk uninstall atm9 --force
+
+# Uninstall from custom directory
+chunk uninstall atm9 --dir /opt/minecraft
+
+# Force uninstall, keeping worlds (no prompts, preserves world data)
+chunk uninstall atm9 --force --keep-worlds
+```
+
+**Behavior:**
+
+By default, the uninstall command will:
+1. Prompt you to keep or delete world and player data
+2. Show what will be removed and preserved
+3. Ask for final confirmation before proceeding
+4. Remove modpack files (mods, configs, libraries, scripts)
+5. Optionally preserve world data, server properties, and player files
+6. Update installation tracking in `~/.chunk/installed.json`
+
+**Removed Files:**
+- `mods/` - All mod files
+- `config/` - Configuration files
+- `libraries/` - Mod loader libraries
+- `defaultconfigs/` - Default configurations
+- `kubejs/`, `scripts/` - Custom scripts
+- `resourcepacks/`, `shaderpacks/` - Resource packs
+- Start scripts (`start.sh`, `start.bat`)
+- Loader installers and JAR files
+- `eula.txt`
+
+**Preserved Files (with --keep-worlds):**
+- `world/`, `world_nether/`, `world_the_end/` - World data
+- `server.properties` - Server configuration
+- `whitelist.json`, `ops.json` - Player permissions
+- `banned-players.json`, `banned-ips.json` - Ban lists
+- `usercache.json` - Player cache
+
 ### `chunk bench`
 
 Manage recipe benches (repositories containing modpack recipes).

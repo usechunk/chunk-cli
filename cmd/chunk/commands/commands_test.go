@@ -234,3 +234,62 @@ func TestCheckCommandFlags(t *testing.T) {
 		t.Errorf("Expected --format shorthand to be 'f', got '%s'", formatFlag.Shorthand)
 	}
 }
+
+func TestUninstallCommand(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{
+			name:    "uninstall without args",
+			args:    []string{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rootCmd := &cobra.Command{Use: "chunk"}
+			rootCmd.AddCommand(UninstallCmd)
+
+			_, err := executeCommand(rootCmd, append([]string{"uninstall"}, tt.args...)...)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("UninstallCmd error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestUninstallCommandFlags(t *testing.T) {
+	// Test that the uninstall command has the expected flags
+	rootCmd := &cobra.Command{Use: "chunk"}
+	rootCmd.AddCommand(UninstallCmd)
+
+	// Check that --dir flag exists
+	dirFlag := UninstallCmd.Flags().Lookup("dir")
+	if dirFlag == nil {
+		t.Error("Expected --dir flag to exist")
+	}
+	if dirFlag.Shorthand != "d" {
+		t.Errorf("Expected --dir shorthand to be 'd', got '%s'", dirFlag.Shorthand)
+	}
+
+	// Check that --keep-worlds flag exists
+	keepWorldsFlag := UninstallCmd.Flags().Lookup("keep-worlds")
+	if keepWorldsFlag == nil {
+		t.Error("Expected --keep-worlds flag to exist")
+	}
+	if keepWorldsFlag.DefValue != "false" {
+		t.Errorf("Expected --keep-worlds default to be 'false', got '%s'", keepWorldsFlag.DefValue)
+	}
+
+	// Check that --force flag exists
+	forceFlag := UninstallCmd.Flags().Lookup("force")
+	if forceFlag == nil {
+		t.Error("Expected --force flag to exist")
+	}
+	if forceFlag.DefValue != "false" {
+		t.Errorf("Expected --force default to be 'false', got '%s'", forceFlag.DefValue)
+	}
+}

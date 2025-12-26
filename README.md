@@ -64,6 +64,12 @@ chunk upgrade atm9
 
 # Preview changes before upgrading
 chunk diff atm9
+
+# Uninstall a modpack
+chunk uninstall atm9
+
+# Uninstall keeping world data
+chunk uninstall atm9 --keep-worlds
 ```
 
 ## 📖 Documentation
