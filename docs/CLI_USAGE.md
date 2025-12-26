@@ -141,7 +141,7 @@ Uninstall a modpack server installation and optionally preserve world data.
 **Flags:**
 - `--dir <path>` - Server directory to uninstall from (default: ./server)
 - `--keep-worlds` - Preserve world and player data
-- `--force` - Skip confirmation prompts and proceed immediately
+- `--force` - Skip confirmation prompts (respects --keep-worlds)
 
 **Examples:**
 ```bash
@@ -151,13 +151,13 @@ chunk uninstall atm9
 # Keep world data without prompt
 chunk uninstall atm9 --keep-worlds
 
-# Force uninstall without confirmation (deletes everything)
+# Force uninstall without confirmation prompts
 chunk uninstall atm9 --force
 
 # Uninstall from custom directory
 chunk uninstall atm9 --dir /opt/minecraft
 
-# Force uninstall, keeping worlds
+# Force uninstall, keeping worlds (no prompts, preserves world data)
 chunk uninstall atm9 --force --keep-worlds
 ```
 

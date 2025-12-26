@@ -15,6 +15,8 @@ import (
 type Options struct {
 	// ServerDir is the directory containing the modpack installation
 	ServerDir string
+	// ModpackSlug is the identifier of the modpack to uninstall (optional)
+	ModpackSlug string
 	// KeepWorlds preserves world data during uninstall
 	KeepWorlds bool
 	// Force skips confirmation prompts
@@ -65,6 +67,17 @@ func (u *Uninstaller) Uninstall(opts *Options) (*Result, error) {
 	installation, err := u.tracker.GetInstallation(serverDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get installation info: %w", err)
+	}
+
+	// Validate that the requested modpack matches the tracked installation, if provided.
+	// This helps prevent accidentally uninstalling the wrong modpack when the directory
+	// does not contain the expected installation.
+	if opts.ModpackSlug != "" && installation != nil && installation.Slug != "" &&
+		!strings.EqualFold(opts.ModpackSlug, installation.Slug) {
+		return nil, fmt.Errorf(
+			"requested modpack %q does not match installed modpack %q in directory %s",
+			opts.ModpackSlug, installation.Slug, serverDir,
+		)
 	}
 
 	// Determine what to remove and what to preserve

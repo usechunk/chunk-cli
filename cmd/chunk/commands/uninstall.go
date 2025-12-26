@@ -29,7 +29,7 @@ This command will:
 Examples:
   chunk uninstall atm9                      # Prompt for world preservation
   chunk uninstall atm9 --keep-worlds        # Keep world and player data
-  chunk uninstall atm9 --force              # No confirmation, delete everything
+  chunk uninstall atm9 --force              # No confirmation prompts
   chunk uninstall atm9 --dir ./myserver     # Uninstall from custom directory`,
 	Args: cobra.ExactArgs(1),
 	RunE: runUninstall,
@@ -58,9 +58,10 @@ func runUninstall(cmd *cobra.Command, args []string) error {
 
 	// Prepare options
 	opts := &uninstall.Options{
-		ServerDir:  destDir,
-		KeepWorlds: uninstallKeepWorlds,
-		Force:      uninstallForce,
+		ServerDir:   destDir,
+		ModpackSlug: modpack,
+		KeepWorlds:  uninstallKeepWorlds,
+		Force:       uninstallForce,
 	}
 
 	// Perform uninstall
@@ -94,7 +95,7 @@ func runUninstall(cmd *cobra.Command, args []string) error {
 func init() {
 	UninstallCmd.Flags().StringVarP(&uninstallDir, "dir", "d", "", "Server directory to uninstall from (default: ./server)")
 	UninstallCmd.Flags().BoolVar(&uninstallKeepWorlds, "keep-worlds", false, "Keep world and player data")
-	UninstallCmd.Flags().BoolVar(&uninstallForce, "force", false, "Skip confirmation prompts and delete everything")
+	UninstallCmd.Flags().BoolVar(&uninstallForce, "force", false, "Skip confirmation prompts (respects --keep-worlds)")
 
 	// Suppress usage printing on errors
 	UninstallCmd.SilenceUsage = true
