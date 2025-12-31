@@ -51,6 +51,7 @@ func init() {
 	rootCmd.AddCommand(commands.UpdateCmd)
 	rootCmd.AddCommand(commands.InfoCmd)
 	rootCmd.AddCommand(commands.ListCmd)
+	rootCmd.AddCommand(commands.CleanupCmd)
 }
 
 func main() {
