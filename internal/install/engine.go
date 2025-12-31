@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/alexinslc/chunk/internal/cache"
 	"github.com/alexinslc/chunk/internal/converter"
 	"github.com/alexinslc/chunk/internal/sources"
 	"github.com/alexinslc/chunk/internal/tracking"
@@ -295,38 +296,121 @@ func (i *Installer) downloadAndExtractRecipe(identifier string, modpack *sources
 		return fmt.Errorf("failed to find recipe: %w", err)
 	}
 
-	// Create a temp file for the download
-	tmpFile, err := os.CreateTemp("", "chunk-download-*.mrpack")
+	// Initialize cache manager
+	cacheManager, err := cache.NewManager()
 	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
+		ui.PrintWarning(fmt.Sprintf("Failed to initialize cache manager: %v", err))
+		// Continue without cache
+		cacheManager = nil
 	}
-	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
 
-	// Download with progress
-	ui.PrintInfo(fmt.Sprintf("Downloading from: %s", modpack.ManifestURL))
+	// Determine version for cache key (use recipe version or MC version)
+	version := recipe.Version
+	if version == "" {
+		version = recipe.MCVersion
+	}
 
-	// Track progress
-	var lastPercent int
-	err = recipeClient.DownloadFile(modpack.ManifestURL, tmpFile, func(downloaded, total int64) {
-		if total > 0 {
-			percent := int(float64(downloaded) / float64(total) * 100)
-			// Only print when percentage changes to reduce output noise
-			if percent != lastPercent {
-				lastPercent = percent
-				ui.PrintInfo(fmt.Sprintf("Progress: %d%% (%d MB / %d MB)", percent, downloaded/(1024*1024), total/(1024*1024)))
+	var downloadPath string
+	var shouldCleanup bool
+
+	// Check if file is already in cache
+	if cacheManager != nil {
+		cachedPath := cacheManager.GetCachePath(recipe.Slug, version, "modpack.mrpack")
+		if _, err := os.Stat(cachedPath); err == nil {
+			// File exists in cache
+			ui.PrintInfo("Using cached download")
+			
+			// Update last used timestamp
+			if err := cacheManager.UpdateLastUsed(cachedPath); err != nil {
+				ui.PrintWarning(fmt.Sprintf("Failed to update cache timestamp: %v", err))
+			}
+			
+			downloadPath = cachedPath
+			shouldCleanup = false
+		}
+	}
+
+	// If not in cache, download to cache directory or temp
+	if downloadPath == "" {
+		var downloadFile *os.File
+		
+		if cacheManager != nil {
+			// Download to cache
+			downloadPath = cacheManager.GetCachePath(recipe.Slug, version, "modpack.mrpack")
+			downloadFile, err = os.Create(downloadPath)
+			if err != nil {
+				ui.PrintWarning(fmt.Sprintf("Failed to create cache file: %v, using temp file", err))
+				// Fallback to temp file
+				downloadFile, err = os.CreateTemp("", "chunk-download-*.mrpack")
+				if err != nil {
+					return fmt.Errorf("failed to create temp file: %w", err)
+				}
+				downloadPath = downloadFile.Name()
+				shouldCleanup = true
+			} else {
+				shouldCleanup = false
+			}
+		} else {
+			// No cache manager, use temp file
+			downloadFile, err = os.CreateTemp("", "chunk-download-*.mrpack")
+			if err != nil {
+				return fmt.Errorf("failed to create temp file: %w", err)
+			}
+			downloadPath = downloadFile.Name()
+			shouldCleanup = true
+		}
+		
+		if shouldCleanup {
+			defer os.Remove(downloadPath)
+		}
+		defer downloadFile.Close()
+
+		// Download with progress
+		ui.PrintInfo(fmt.Sprintf("Downloading from: %s", modpack.ManifestURL))
+
+		// Track progress
+		var lastPercent int
+		var downloadSize int64
+		err = recipeClient.DownloadFile(modpack.ManifestURL, downloadFile, func(downloaded, total int64) {
+			downloadSize = downloaded // Track for metadata
+			if total > 0 {
+				percent := int(float64(downloaded) / float64(total) * 100)
+				// Only print when percentage changes to reduce output noise
+				if percent != lastPercent {
+					lastPercent = percent
+					ui.PrintInfo(fmt.Sprintf("Progress: %d%% (%d MB / %d MB)", percent, downloaded/(1024*1024), total/(1024*1024)))
+				}
+			}
+		})
+
+		if err != nil {
+			return fmt.Errorf("download failed: %w", err)
+		}
+		
+		// Save metadata if using cache
+		if cacheManager != nil && !shouldCleanup {
+			metadata := &cache.DownloadMetadata{
+				Slug:         recipe.Slug,
+				Version:      version,
+				Filename:     "modpack.mrpack",
+				Size:         downloadSize,
+				DownloadURL:  modpack.ManifestURL,
+				SHA256:       recipe.SHA256,
+				DownloadedAt: time.Now(),
+				LastUsedAt:   time.Now(),
+			}
+			if err := cacheManager.SaveMetadata(downloadPath, metadata); err != nil {
+				ui.PrintWarning(fmt.Sprintf("Failed to save cache metadata: %v", err))
+			} else {
+				ui.PrintInfo("Download cached for future use")
 			}
 		}
-	})
-
-	if err != nil {
-		return fmt.Errorf("download failed: %w", err)
 	}
 
 	// Verify checksum if not skipped
 	if !i.skipVerify && recipe.SHA256 != "" {
 		ui.PrintInfo("Verifying checksum...")
-		if err := sources.VerifyChecksum(tmpFile.Name(), recipe.SHA256); err != nil {
+		if err := sources.VerifyChecksum(downloadPath, recipe.SHA256); err != nil {
 			return fmt.Errorf("checksum verification failed: %w", err)
 		}
 		ui.PrintSuccess("Checksum verified")
@@ -336,7 +420,7 @@ func (i *Installer) downloadAndExtractRecipe(identifier string, modpack *sources
 
 	// Extract the archive
 	ui.PrintInfo("Extracting modpack...")
-	if err := sources.ExtractArchive(tmpFile.Name(), destDir); err != nil {
+	if err := sources.ExtractArchive(downloadPath, destDir); err != nil {
 		return fmt.Errorf("extraction failed: %w", err)
 	}
 
