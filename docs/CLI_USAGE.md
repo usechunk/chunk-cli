@@ -32,6 +32,9 @@ chunk diff ./old-server ./new-modpack
 chunk bench add usechunk/recipes
 chunk bench list
 chunk bench update usechunk/recipes
+
+# Create a new recipe interactively
+chunk recipe create
 ```
 
 ## Installation
@@ -404,6 +407,63 @@ When upgrading servers, Chunk automatically preserves:
 - Custom configurations
 
 A backup is created before upgrades and can be restored if issues occur.
+
+## Recipe Management
+
+### `chunk recipe create`
+
+Create a new recipe JSON file through an interactive wizard.
+
+**Flags:**
+- `--template <recipe>` - Start from an existing recipe (name, slug, or file path)
+- `--output <dir>` - Output directory for the recipe file
+
+**Examples:**
+```bash
+# Create a new recipe interactively
+chunk recipe create
+
+# Start from an existing recipe
+chunk recipe create --template atm9
+
+# Save to a specific directory
+chunk recipe create --output ./my-recipes
+```
+
+**Interactive Flow:**
+
+The wizard will prompt you for:
+1. **Name** - Modpack name (e.g., "My Custom Modpack")
+2. **Slug** - Auto-generated from name (e.g., "my-custom-modpack")
+3. **Description** - Brief description of the modpack
+4. **Minecraft version** - Target MC version (e.g., "1.20.1")
+5. **Loader** - Mod loader type (forge/fabric/neoforge)
+6. **Loader version** - Specific loader version (e.g., "47.3.0")
+7. **Download URL** - Direct download link to modpack
+8. **RAM** - Recommended RAM in GB
+9. **Disk space** - Required disk space in GB
+10. **License** - License type (MIT/GPL-3.0/ARR)
+11. **Homepage** - Optional project homepage
+12. **Author** - Optional author name
+
+The command will:
+- Download the file to calculate SHA-256 checksum
+- Validate all inputs
+- Generate a properly formatted JSON recipe file
+- Display instructions for submitting to usechunk/recipes
+
+**Security Notes:**
+- Only HTTP/HTTPS URLs are allowed
+- Files are limited to 2GB to prevent memory exhaustion
+- Checksums are automatically calculated for integrity verification
+
+**Submitting Recipes:**
+
+To submit your recipe to the official repository:
+1. Fork https://github.com/usechunk/recipes
+2. Add your recipe JSON to the `Recipes/` directory
+3. Open a pull request
+4. Your recipe will be reviewed and made available to all chunk users
 
 ## Troubleshooting
 
