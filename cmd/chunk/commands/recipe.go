@@ -404,10 +404,16 @@ func promptURL(reader *bufio.Reader, prompt string, defaultValue string) (string
 		return "", fmt.Errorf("URL is required")
 	}
 
-	// Validate URL format
+	// Validate URL format and enforce http/https scheme
 	parsedURL, err := url.Parse(text)
-	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
+	if err != nil {
 		return "", fmt.Errorf("invalid URL: %s", text)
+	}
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return "", fmt.Errorf("invalid URL scheme (must be http or https): %s", text)
+	}
+	if parsedURL.Host == "" {
+		return "", fmt.Errorf("invalid URL (missing host): %s", text)
 	}
 
 	return text, nil
@@ -423,6 +429,16 @@ func generateSlug(name string) string {
 
 	// Remove leading/trailing hyphens
 	slug = strings.Trim(slug, "-")
+
+	// Ensure slug is not empty; fall back to a safe default
+	if slug == "" {
+		slug = "modpack"
+	}
+
+	// Ensure slug starts with a letter to avoid numeric-only slugs
+	if len(slug) > 0 && (slug[0] < 'a' || slug[0] > 'z') {
+		slug = "modpack-" + slug
+	}
 
 	return slug
 }
@@ -456,13 +472,19 @@ func downloadAndCalculateChecksum(downloadURL string) (string, int64, error) {
 	// Check content length to prevent memory exhaustion
 	// Limit to 2GB to be safe (most modpacks are much smaller)
 	const maxSize = 2 * 1024 * 1024 * 1024 // 2GB
-	if resp.ContentLength > maxSize {
-		return "", 0, fmt.Errorf("file too large: %d bytes (max %d bytes)", resp.ContentLength, maxSize)
+	
+	// Handle missing or negative Content-Length
+	totalSize := resp.ContentLength
+	if totalSize < 0 {
+		totalSize = 0 // Treat as unknown size
+	}
+	
+	if totalSize > maxSize {
+		return "", 0, fmt.Errorf("file too large: %d bytes (max %d bytes)", totalSize, maxSize)
 	}
 
 	// Calculate checksum while downloading with size limit
 	hash := sha256.New()
-	totalSize := resp.ContentLength
 
 	// Create a limited reader to prevent reading more than maxSize
 	limitedReader := io.LimitReader(resp.Body, maxSize)
@@ -474,7 +496,7 @@ func downloadAndCalculateChecksum(downloadURL string) (string, int64, error) {
 		_, err = io.Copy(io.MultiWriter(hash, &progressWriter{pb: pb, written: &written}), limitedReader)
 		pb.Finish()
 	} else {
-		// No progress bar if size unknown
+		// No progress bar if size unknown, but still apply size limit
 		written, err = io.Copy(hash, limitedReader)
 	}
 
