@@ -428,9 +428,18 @@ func generateSlug(name string) string {
 }
 
 func downloadAndCalculateChecksum(downloadURL string) (string, int64, error) {
-	// Create HTTP client with timeout
+	// Validate URL scheme (only allow HTTPS and HTTP)
+	parsedURL, err := url.Parse(downloadURL)
+	if err != nil {
+		return "", 0, fmt.Errorf("invalid URL: %w", err)
+	}
+	if parsedURL.Scheme != "https" && parsedURL.Scheme != "http" {
+		return "", 0, fmt.Errorf("unsupported URL scheme: %s (only http and https are allowed)", parsedURL.Scheme)
+	}
+
+	// Create HTTP client with reasonable timeout
 	client := &http.Client{
-		Timeout: 10 * time.Minute,
+		Timeout: 3 * time.Minute, // Reasonable timeout for most modpack downloads
 	}
 
 	// Download the file
@@ -444,19 +453,29 @@ func downloadAndCalculateChecksum(downloadURL string) (string, int64, error) {
 		return "", 0, fmt.Errorf("download failed with status: %d", resp.StatusCode)
 	}
 
-	// Calculate checksum while downloading
+	// Check content length to prevent memory exhaustion
+	// Limit to 2GB to be safe (most modpacks are much smaller)
+	const maxSize = 2 * 1024 * 1024 * 1024 // 2GB
+	if resp.ContentLength > maxSize {
+		return "", 0, fmt.Errorf("file too large: %d bytes (max %d bytes)", resp.ContentLength, maxSize)
+	}
+
+	// Calculate checksum while downloading with size limit
 	hash := sha256.New()
 	totalSize := resp.ContentLength
+
+	// Create a limited reader to prevent reading more than maxSize
+	limitedReader := io.LimitReader(resp.Body, maxSize)
 
 	// Create progress bar if we know the size
 	var written int64
 	if totalSize > 0 {
 		pb := ui.NewProgressBar(totalSize, "Downloading")
-		_, err = io.Copy(io.MultiWriter(hash, &progressWriter{pb: pb, written: &written}), resp.Body)
+		_, err = io.Copy(io.MultiWriter(hash, &progressWriter{pb: pb, written: &written}), limitedReader)
 		pb.Finish()
 	} else {
 		// No progress bar if size unknown
-		written, err = io.Copy(hash, resp.Body)
+		written, err = io.Copy(hash, limitedReader)
 	}
 
 	if err != nil {
@@ -558,7 +577,7 @@ func init() {
 
 	// Flags for create command
 	recipeCreateCmd.Flags().StringVar(&templateRecipe, "template", "", "Start from an existing recipe (name, slug, or file path)")
-	recipeCreateCmd.Flags().StringVar(&outputDir, "output", ".", "Output directory for the recipe file")
+	recipeCreateCmd.Flags().StringVar(&outputDir, "output", "", "Output directory for the recipe file (default: current directory)")
 
 	// Suppress usage printing on errors
 	RecipeCmd.SilenceUsage = true
