@@ -112,17 +112,17 @@ func TestUpgradeCommand(t *testing.T) {
 		{
 			name:    "upgrade with modpack name",
 			args:    []string{"atm9"},
-			wantErr: false,
+			wantErr: true, // Validates server directory existence check
 		},
 		{
 			name:    "upgrade with directory",
 			args:    []string{"atm9", "--dir", "/tmp/test"},
-			wantErr: false,
+			wantErr: true, // Validates server directory existence check
 		},
 		{
 			name:    "upgrade without args",
 			args:    []string{},
-			wantErr: true,
+			wantErr: true, // Validates directory existence and tracking availability
 		},
 	}
 
@@ -136,6 +136,48 @@ func TestUpgradeCommand(t *testing.T) {
 				t.Errorf("UpgradeCmd error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestUpgradeCommandFlags(t *testing.T) {
+	// Test that the upgrade command has the expected flags
+	rootCmd := &cobra.Command{Use: "chunk"}
+	rootCmd.AddCommand(UpgradeCmd)
+
+	// Check that --dir flag exists
+	dirFlag := UpgradeCmd.Flags().Lookup("dir")
+	if dirFlag == nil {
+		t.Error("Expected --dir flag to exist")
+	}
+	if dirFlag.Shorthand != "d" {
+		t.Errorf("Expected --dir shorthand to be 'd', got '%s'", dirFlag.Shorthand)
+	}
+
+	// Check that --dry-run flag exists
+	dryRunFlag := UpgradeCmd.Flags().Lookup("dry-run")
+	if dryRunFlag == nil {
+		t.Error("Expected --dry-run flag to exist")
+	}
+	if dryRunFlag.DefValue != "false" {
+		t.Errorf("Expected --dry-run default to be 'false', got '%s'", dryRunFlag.DefValue)
+	}
+
+	// Check that --skip-backup flag exists
+	skipBackupFlag := UpgradeCmd.Flags().Lookup("skip-backup")
+	if skipBackupFlag == nil {
+		t.Error("Expected --skip-backup flag to exist")
+	}
+	if skipBackupFlag.DefValue != "false" {
+		t.Errorf("Expected --skip-backup default to be 'false', got '%s'", skipBackupFlag.DefValue)
+	}
+
+	// Check that --verify flag exists
+	verifyFlag := UpgradeCmd.Flags().Lookup("verify")
+	if verifyFlag == nil {
+		t.Error("Expected --verify flag to exist")
+	}
+	if verifyFlag.DefValue != "true" {
+		t.Errorf("Expected --verify default to be 'true', got '%s'", verifyFlag.DefValue)
 	}
 }
 

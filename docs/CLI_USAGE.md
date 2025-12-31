@@ -115,21 +115,130 @@ chunk search "all the mods"
 chunk search atm --bench usechunk/recipes
 ```
 
-### `chunk upgrade <modpack>`
+### `chunk upgrade [modpack]`
 
-Upgrade an existing server installation to a new version while preserving world data and configurations.
+Upgrade an existing modpack server installation to the latest version while preserving world data and configurations.
 
 **Arguments:**
-- `modpack` - New modpack version or source
+- `modpack` - (Optional) Modpack identifier to upgrade to. If omitted, attempts to detect from installed.json
 
 **Flags:**
-- `--dir <path>` - Server directory to upgrade
-- `--no-backup` - Skip backup creation (not recommended)
+- `-d, --dir <path>` - Server directory to upgrade (default: ./server)
+- `--dry-run` - Preview changes without upgrading
+- `--skip-backup` - Skip backup creation (not recommended)
+- `--verify` - Verify checksums of downloaded files (default: true)
 
 **Examples:**
 ```bash
+# Upgrade from tracked installation
+chunk upgrade --dir /opt/minecraft
+
+# Upgrade specific modpack
+chunk upgrade atm9
+
+# Preview upgrade changes
+chunk upgrade atm9 --dry-run
+
+# Upgrade without backup (not recommended)
+chunk upgrade atm9 --skip-backup
+
+# Upgrade with custom directory
 chunk upgrade atm9 --dir /opt/minecraft
 ```
+
+**Upgrade Process:**
+
+The upgrade command performs the following steps:
+
+1. **Version Detection:**
+   - Reads current version from `.chunk-recipe.json` in server directory
+   - Queries benches for the latest version of the modpack
+   - Displays version comparison and changes
+
+2. **Backup Creation:**
+   - Creates backup in `.chunk-backup` directory within server
+   - Backs up critical files:
+     - `world/`, `world_nether/`, `world_the_end/` - World data
+     - `server.properties` - Server configuration
+     - `whitelist.json`, `ops.json`, `banned-players.json`, `banned-ips.json` - Player data
+
+3. **Installation:**
+   - Downloads new modpack version
+   - Installs new mods and mod loader
+   - Updates configuration files
+   - Generates new start scripts
+
+4. **Data Restoration:**
+   - Restores world data from backup
+   - Restores server configuration files
+   - Preserves custom player permissions and bans
+
+5. **Rollback on Failure:**
+   - If upgrade fails, automatically restores from backup
+   - Returns server to previous working state
+
+**Output Example:**
+```
+🔄 Chunk Modpack Upgrader
+
+ℹ Current version: 0.3.1
+ℹ Checking for updates...
+ℹ Available version: 0.3.2
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Upgrade Summary
+
+   Modpack:       All the Mods 9
+   Current:       0.3.1
+   New:           0.3.2
+   Minecraft:     1.20.1
+   Loader:        forge 47.2.0
+   Server Mods:   342
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💾 Data to preserve:
+   • world
+   • server.properties
+   • whitelist.json
+   • ops.json
+
+✓ Backup created: .chunk-backup
+ℹ Downloading and installing new version...
+✓ Data restored
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Upgrade Complete!
+
+   Modpack:   All the Mods 9
+   Version:   0.3.2
+   Location:  /opt/minecraft
+   Backup:    /opt/minecraft/.chunk-backup
+
+To start the server:
+   cd /opt/minecraft
+   ./start.sh (Linux/Mac) or start.bat (Windows)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Safety Features:**
+
+- **Automatic Backup:** Creates backup before any changes
+- **Dry Run Mode:** Preview changes with `--dry-run` flag
+- **Version Comparison:** Shows what will change before upgrading
+- **Automatic Rollback:** Restores previous version if upgrade fails
+- **Data Preservation:** World and player data are never deleted
+- **Checksum Verification:** Validates downloaded files for integrity
+
+**When to Use:**
+
+- Updating to a new modpack version
+- Applying bug fixes or mod updates
+- Upgrading Minecraft or loader versions
+- Migrating between compatible modpack versions
+
+**Warning:**
+
+Major version changes (e.g., Minecraft 1.19 → 1.20) may not be compatible with existing worlds. Always test in a backup world first.
 
 ### `chunk uninstall <modpack>`
 
