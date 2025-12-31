@@ -319,12 +319,12 @@ func (i *Installer) downloadAndExtractRecipe(identifier string, modpack *sources
 		if _, err := os.Stat(cachedPath); err == nil {
 			// File exists in cache
 			ui.PrintInfo("Using cached download")
-			
+
 			// Update last used timestamp
 			if err := cacheManager.UpdateLastUsed(cachedPath); err != nil {
 				ui.PrintWarning(fmt.Sprintf("Failed to update cache timestamp: %v", err))
 			}
-			
+
 			downloadPath = cachedPath
 			shouldCleanup = false
 		}
@@ -333,7 +333,7 @@ func (i *Installer) downloadAndExtractRecipe(identifier string, modpack *sources
 	// If not in cache, download to cache directory or temp
 	if downloadPath == "" {
 		var downloadFile *os.File
-		
+
 		if cacheManager != nil {
 			// Download to cache
 			downloadPath = cacheManager.GetCachePath(recipe.Slug, version, "modpack.mrpack")
@@ -359,7 +359,7 @@ func (i *Installer) downloadAndExtractRecipe(identifier string, modpack *sources
 			downloadPath = downloadFile.Name()
 			shouldCleanup = true
 		}
-		
+
 		if shouldCleanup {
 			defer os.Remove(downloadPath)
 		}
@@ -386,7 +386,7 @@ func (i *Installer) downloadAndExtractRecipe(identifier string, modpack *sources
 		if err != nil {
 			return fmt.Errorf("download failed: %w", err)
 		}
-		
+
 		// Save metadata if using cache
 		if cacheManager != nil && !shouldCleanup {
 			metadata := &cache.DownloadMetadata{

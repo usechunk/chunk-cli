@@ -54,7 +54,7 @@ func TestUpgradeCommandDryRun(t *testing.T) {
 
 	// Test that upgrade with non-existent modpack shows appropriate error
 	rootCmd := &cobra.Command{Use: "chunk"}
-	
+
 	// Create a fresh command instance to avoid flag state issues
 	testUpgradeCmd := &cobra.Command{
 		Use:   UpgradeCmd.Use,
@@ -68,7 +68,7 @@ func TestUpgradeCommandDryRun(t *testing.T) {
 	testUpgradeCmd.Flags().BoolVar(&skipBackup, "skip-backup", false, "Skip backup creation (not recommended)")
 	testUpgradeCmd.Flags().BoolVar(&upgradeVerify, "verify", true, "Verify checksums of downloaded files")
 	testUpgradeCmd.SilenceUsage = true
-	
+
 	rootCmd.AddCommand(testUpgradeCmd)
 
 	_, err = executeCommand(rootCmd, "upgrade", "test-pack", "--dir", serverDir, "--dry-run")
@@ -130,7 +130,7 @@ func TestUpgradeWithTracking(t *testing.T) {
 
 	// Test upgrade without modpack arg (should detect from tracking)
 	rootCmd := &cobra.Command{Use: "chunk"}
-	
+
 	// Create a fresh command instance to avoid flag state issues
 	testUpgradeCmd := &cobra.Command{
 		Use:   UpgradeCmd.Use,
@@ -144,7 +144,7 @@ func TestUpgradeWithTracking(t *testing.T) {
 	testUpgradeCmd.Flags().BoolVar(&skipBackup, "skip-backup", false, "Skip backup creation (not recommended)")
 	testUpgradeCmd.Flags().BoolVar(&upgradeVerify, "verify", true, "Verify checksums of downloaded files")
 	testUpgradeCmd.SilenceUsage = true
-	
+
 	rootCmd.AddCommand(testUpgradeCmd)
 
 	_, err = executeCommand(rootCmd, "upgrade", "--dir", serverDir, "--dry-run")
@@ -161,11 +161,11 @@ func TestUpgradeWithTracking(t *testing.T) {
 
 func TestGetCurrentVersion(t *testing.T) {
 	tests := []struct {
-		name           string
-		recipeData     map[string]interface{}
-		expectedVer    string
-		expectError    bool
-		createRecipe   bool
+		name         string
+		recipeData   map[string]interface{}
+		expectedVer  string
+		expectError  bool
+		createRecipe bool
 	}{
 		{
 			name: "with explicit version",

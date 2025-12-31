@@ -1,5 +1,8 @@
 # GitHub Copilot Instructions for Chunk CLI
 
+## Project Overview
+Chunk is a universal CLI tool that makes deploying modded Minecraft servers simple—one command to install, upgrade, and manage modpacks. It eliminates hours of manual mod installation by automating downloads, configuration, and dependency resolution from multiple sources (Modrinth, CurseForge, GitHub, ChunkHub).
+
 ## Project Context
 Go CLI tool for installing and managing Minecraft mods/modpacks. Integrates with multiple sources (Modrinth, CurseForge, GitHub, ChunkHub).
 
