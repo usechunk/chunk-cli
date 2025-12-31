@@ -77,21 +77,21 @@ func NewManager() (*Manager, error) {
 	}, nil
 }
 
-// GetCachePath returns the path to a cached file
+// GetCachePath returns the path to a cached file for the given slug, version, and filename.
 func (m *Manager) GetCachePath(slug, version, filename string) string {
 	// Create a safe filename using slug and version
 	safeName := sanitizeFilename(fmt.Sprintf("%s-%s-%s", slug, version, filename))
 	return filepath.Join(m.cacheDir, safeName)
 }
 
-// GetMetadataPath returns the path to the metadata file for a cached download
+// GetMetadataPath returns the path to the metadata file associated with a cached download.
 func (m *Manager) GetMetadataPath(cachePath string) string {
 	dir := filepath.Dir(cachePath)
 	base := filepath.Base(cachePath)
 	return filepath.Join(dir, "."+base+".metadata.json")
 }
 
-// SaveMetadata saves metadata for a cached download
+// SaveMetadata saves metadata for a cached download to disk.
 func (m *Manager) SaveMetadata(cachePath string, metadata *DownloadMetadata) error {
 	metadataPath := m.GetMetadataPath(cachePath)
 	data, err := json.MarshalIndent(metadata, "", "  ")
@@ -106,7 +106,7 @@ func (m *Manager) SaveMetadata(cachePath string, metadata *DownloadMetadata) err
 	return nil
 }
 
-// LoadMetadata loads metadata for a cached download
+// LoadMetadata loads metadata for a cached download from disk, returning nil if no metadata exists.
 func (m *Manager) LoadMetadata(cachePath string) (*DownloadMetadata, error) {
 	metadataPath := m.GetMetadataPath(cachePath)
 	data, err := os.ReadFile(metadataPath)
@@ -125,7 +125,7 @@ func (m *Manager) LoadMetadata(cachePath string) (*DownloadMetadata, error) {
 	return &metadata, nil
 }
 
-// ListCachedFiles returns all cached files with their metadata
+// ListCachedFiles returns all cached files with their associated metadata.
 func (m *Manager) ListCachedFiles() ([]*CachedFile, error) {
 	entries, err := os.ReadDir(m.cacheDir)
 	if err != nil {
@@ -160,7 +160,8 @@ func (m *Manager) ListCachedFiles() ([]*CachedFile, error) {
 	return cachedFiles, nil
 }
 
-// AnalyzeCache analyzes the cache and identifies files that can be removed
+// AnalyzeCache analyzes the cache and identifies files that can be removed based on
+// outdated versions, uninstalled modpacks, and partial downloads.
 func (m *Manager) AnalyzeCache() (*CleanupStats, error) {
 	cachedFiles, err := m.ListCachedFiles()
 	if err != nil {
@@ -220,7 +221,7 @@ func (m *Manager) AnalyzeCache() (*CleanupStats, error) {
 	return stats, nil
 }
 
-// GetCacheSize returns the total size of all cached files
+// GetCacheSize returns the total size of all cached files in bytes and the count of files.
 func (m *Manager) GetCacheSize() (int64, int, error) {
 	cachedFiles, err := m.ListCachedFiles()
 	if err != nil {
@@ -235,7 +236,7 @@ func (m *Manager) GetCacheSize() (int64, int, error) {
 	return totalSize, len(cachedFiles), nil
 }
 
-// RemoveFile removes a cached file and its metadata
+// RemoveFile removes a cached file and its associated metadata from disk.
 func (m *Manager) RemoveFile(cachePath string) error {
 	// Remove the file
 	if err := os.Remove(cachePath); err != nil && !os.IsNotExist(err) {
@@ -251,7 +252,7 @@ func (m *Manager) RemoveFile(cachePath string) error {
 	return nil
 }
 
-// CleanupFiles removes the specified files from the cache
+// CleanupFiles removes the specified list of files from the cache.
 func (m *Manager) CleanupFiles(files []*CachedFile) error {
 	for _, file := range files {
 		if err := m.RemoveFile(file.Path); err != nil {
@@ -261,7 +262,7 @@ func (m *Manager) CleanupFiles(files []*CachedFile) error {
 	return nil
 }
 
-// CleanupAll removes all cached files
+// CleanupAll removes all cached files from the download cache.
 func (m *Manager) CleanupAll() error {
 	cachedFiles, err := m.ListCachedFiles()
 	if err != nil {
@@ -271,7 +272,7 @@ func (m *Manager) CleanupAll() error {
 	return m.CleanupFiles(cachedFiles)
 }
 
-// UpdateLastUsed updates the last used timestamp for a cached file
+// UpdateLastUsed updates the last used timestamp for a cached file's metadata.
 func (m *Manager) UpdateLastUsed(cachePath string) error {
 	metadata, err := m.LoadMetadata(cachePath)
 	if err != nil || metadata == nil {

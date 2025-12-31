@@ -49,11 +49,7 @@ func TestSanitizeFilename(t *testing.T) {
 func TestGetCachePath(t *testing.T) {
 	// Create a temporary cache directory for testing
 	tmpDir := t.TempDir()
-	home := os.Getenv("HOME")
-	defer func() {
-		os.Setenv("HOME", home)
-	}()
-	os.Setenv("HOME", tmpDir)
+	t.Setenv("HOME", tmpDir)
 
 	manager, err := NewManager()
 	if err != nil {
@@ -71,11 +67,7 @@ func TestGetCachePath(t *testing.T) {
 func TestMetadataOperations(t *testing.T) {
 	// Create a temporary cache directory for testing
 	tmpDir := t.TempDir()
-	home := os.Getenv("HOME")
-	defer func() {
-		os.Setenv("HOME", home)
-	}()
-	os.Setenv("HOME", tmpDir)
+	t.Setenv("HOME", tmpDir)
 
 	manager, err := NewManager()
 	if err != nil {
@@ -126,11 +118,7 @@ func TestMetadataOperations(t *testing.T) {
 func TestAnalyzeCache(t *testing.T) {
 	// Create a temporary cache directory for testing
 	tmpDir := t.TempDir()
-	home := os.Getenv("HOME")
-	defer func() {
-		os.Setenv("HOME", home)
-	}()
-	os.Setenv("HOME", tmpDir)
+	t.Setenv("HOME", tmpDir)
 
 	manager, err := NewManager()
 	if err != nil {
@@ -140,40 +128,54 @@ func TestAnalyzeCache(t *testing.T) {
 	// Create test files
 	// 1. Outdated version
 	outdatedPath := filepath.Join(manager.cacheDir, "atm9-0.3.1-modpack.mrpack")
-	os.WriteFile(outdatedPath, []byte("outdated content"), 0644)
-	manager.SaveMetadata(outdatedPath, &DownloadMetadata{
+	if err := os.WriteFile(outdatedPath, []byte("outdated content"), 0644); err != nil {
+		t.Fatalf("Failed to write outdated file: %v", err)
+	}
+	if err := manager.SaveMetadata(outdatedPath, &DownloadMetadata{
 		Slug:         "atm9",
 		Version:      "0.3.1",
 		Filename:     "modpack.mrpack",
 		Size:         16,
 		DownloadedAt: time.Now(),
-	})
+	}); err != nil {
+		t.Fatalf("Failed to save metadata for outdated file: %v", err)
+	}
 
 	// 2. Current version
 	currentPath := filepath.Join(manager.cacheDir, "atm9-0.3.2-modpack.mrpack")
-	os.WriteFile(currentPath, []byte("current content"), 0644)
-	manager.SaveMetadata(currentPath, &DownloadMetadata{
+	if err := os.WriteFile(currentPath, []byte("current content"), 0644); err != nil {
+		t.Fatalf("Failed to write current file: %v", err)
+	}
+	if err := manager.SaveMetadata(currentPath, &DownloadMetadata{
 		Slug:         "atm9",
 		Version:      "0.3.2",
 		Filename:     "modpack.mrpack",
 		Size:         15,
 		DownloadedAt: time.Now(),
-	})
+	}); err != nil {
+		t.Fatalf("Failed to save metadata for current file: %v", err)
+	}
 
 	// 3. Uninstalled modpack
 	uninstalledPath := filepath.Join(manager.cacheDir, "vh-1.18.1-modpack.mrpack")
-	os.WriteFile(uninstalledPath, []byte("uninstalled"), 0644)
-	manager.SaveMetadata(uninstalledPath, &DownloadMetadata{
+	if err := os.WriteFile(uninstalledPath, []byte("uninstalled"), 0644); err != nil {
+		t.Fatalf("Failed to write uninstalled file: %v", err)
+	}
+	if err := manager.SaveMetadata(uninstalledPath, &DownloadMetadata{
 		Slug:         "vault-hunters",
 		Version:      "1.18.1",
 		Filename:     "modpack.mrpack",
 		Size:         11,
 		DownloadedAt: time.Now(),
-	})
+	}); err != nil {
+		t.Fatalf("Failed to save metadata for uninstalled file: %v", err)
+	}
 
 	// 4. Partial download (no metadata)
 	partialPath := filepath.Join(manager.cacheDir, "partial.tmp")
-	os.WriteFile(partialPath, []byte("partial"), 0644)
+	if err := os.WriteFile(partialPath, []byte("partial"), 0644); err != nil {
+		t.Fatalf("Failed to write partial file: %v", err)
+	}
 
 	// Create tracked installation
 	tracker, _ := tracking.NewTracker()
@@ -216,11 +218,7 @@ func TestAnalyzeCache(t *testing.T) {
 func TestGetCacheSize(t *testing.T) {
 	// Create a temporary cache directory for testing
 	tmpDir := t.TempDir()
-	home := os.Getenv("HOME")
-	defer func() {
-		os.Setenv("HOME", home)
-	}()
-	os.Setenv("HOME", tmpDir)
+	t.Setenv("HOME", tmpDir)
 
 	manager, err := NewManager()
 	if err != nil {
@@ -229,10 +227,14 @@ func TestGetCacheSize(t *testing.T) {
 
 	// Create test files
 	file1 := filepath.Join(manager.cacheDir, "file1.mrpack")
-	os.WriteFile(file1, []byte("test content 1"), 0644)
+	if err := os.WriteFile(file1, []byte("test content 1"), 0644); err != nil {
+		t.Fatalf("Failed to write file1: %v", err)
+	}
 
 	file2 := filepath.Join(manager.cacheDir, "file2.mrpack")
-	os.WriteFile(file2, []byte("test content 2"), 0644)
+	if err := os.WriteFile(file2, []byte("test content 2"), 0644); err != nil {
+		t.Fatalf("Failed to write file2: %v", err)
+	}
 
 	totalSize, fileCount, err := manager.GetCacheSize()
 	if err != nil {
@@ -252,11 +254,7 @@ func TestGetCacheSize(t *testing.T) {
 func TestRemoveFile(t *testing.T) {
 	// Create a temporary cache directory for testing
 	tmpDir := t.TempDir()
-	home := os.Getenv("HOME")
-	defer func() {
-		os.Setenv("HOME", home)
-	}()
-	os.Setenv("HOME", tmpDir)
+	t.Setenv("HOME", tmpDir)
 
 	manager, err := NewManager()
 	if err != nil {
@@ -265,7 +263,9 @@ func TestRemoveFile(t *testing.T) {
 
 	// Create test file and metadata
 	cachePath := filepath.Join(manager.cacheDir, "test-file.mrpack")
-	os.WriteFile(cachePath, []byte("test content"), 0644)
+	if err := os.WriteFile(cachePath, []byte("test content"), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
 
 	metadata := &DownloadMetadata{
 		Slug:         "test",
@@ -273,7 +273,9 @@ func TestRemoveFile(t *testing.T) {
 		Filename:     "test-file.mrpack",
 		DownloadedAt: time.Now(),
 	}
-	manager.SaveMetadata(cachePath, metadata)
+	if err := manager.SaveMetadata(cachePath, metadata); err != nil {
+		t.Fatalf("Failed to save metadata: %v", err)
+	}
 
 	// Verify files exist
 	if _, err := os.Stat(cachePath); os.IsNotExist(err) {

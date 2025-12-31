@@ -230,11 +230,8 @@ func displayCachedFile(file *cache.CachedFile) {
 	case "uninstalled":
 		reason = "no longer installed"
 	default:
-		if file.Metadata == nil {
-			reason = "failed download"
-		} else {
-			reason = "outdated"
-		}
+		// This should not happen as Reason is always set by AnalyzeCache
+		reason = "unknown"
 	}
 
 	fmt.Printf("  %s (%s) - %s\n", filename, sizeStr, reason)
