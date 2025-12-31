@@ -112,17 +112,17 @@ func TestUpgradeCommand(t *testing.T) {
 		{
 			name:    "upgrade with modpack name",
 			args:    []string{"atm9"},
-			wantErr: true, // Should error because directory doesn't exist
+			wantErr: true, // Validates server directory existence check
 		},
 		{
 			name:    "upgrade with directory",
 			args:    []string{"atm9", "--dir", "/tmp/test"},
-			wantErr: true, // Should error because directory doesn't exist
+			wantErr: true, // Validates server directory existence check
 		},
 		{
 			name:    "upgrade without args",
 			args:    []string{},
-			wantErr: true, // Should error because directory doesn't exist or no tracking
+			wantErr: true, // Validates directory existence and tracking availability
 		},
 	}
 

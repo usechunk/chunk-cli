@@ -110,6 +110,10 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 	ui.PrintInfo(fmt.Sprintf("Available version: %s", newVersion))
 
 	// Compare versions
+	// Note: This comparison uses the version string format. If the modpack uses explicit
+	// version fields in .chunk-recipe.json, it will detect changes. However, if the version
+	// is derived from "mc_version-loader" format (fallback), it may not detect modpack
+	// version updates that keep the same Minecraft and loader versions.
 	if currentVersion == newVersion && currentVersion != "unknown" {
 		fmt.Println()
 		ui.PrintSuccess("Already up to date!")
@@ -217,42 +221,28 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 		spinner := ui.NewSpinner("Restoring preserved data...")
 		spinner.Start()
 
-		// Restore world data
+		// Remove worlds that may have been created by the new installation
+		// before restoring the original worlds from backup
 		worldPaths := []string{"world", "world_nether", "world_the_end"}
 		for _, worldPath := range worldPaths {
-			srcPath := filepath.Join(backupDir, worldPath)
 			dstPath := filepath.Join(absServerDir, worldPath)
-
+			srcPath := filepath.Join(backupDir, worldPath)
+			
+			// Only remove if backup has this world
 			if _, err := os.Stat(srcPath); err == nil {
-				// Remove new world if it exists
-				os.RemoveAll(dstPath)
-				if err := preserver.CopyDir(srcPath, dstPath); err != nil {
-					ui.PrintWarning(fmt.Sprintf("Failed to restore %s: %v", worldPath, err))
+				if err := os.RemoveAll(dstPath); err != nil {
+					ui.PrintWarning(fmt.Sprintf("Failed to remove existing %s: %v", worldPath, err))
 				}
 			}
 		}
 
-		// Restore server configuration files
-		configFiles := []string{
-			"server.properties",
-			"whitelist.json",
-			"ops.json",
-			"banned-players.json",
-			"banned-ips.json",
+		// Use the existing RestoreFromBackup method to restore all backed up data
+		if err := preserver.RestoreFromBackup(absServerDir, backupDir); err != nil {
+			spinner.Error(fmt.Sprintf("Failed to restore data: %v", err))
+			ui.PrintWarning("Some data may not have been restored correctly")
+		} else {
+			spinner.Success("Data restored")
 		}
-
-		for _, configFile := range configFiles {
-			srcPath := filepath.Join(backupDir, configFile)
-			dstPath := filepath.Join(absServerDir, configFile)
-
-			if _, err := os.Stat(srcPath); err == nil {
-				if err := preserver.CopyFile(srcPath, dstPath); err != nil {
-					ui.PrintWarning(fmt.Sprintf("Failed to restore %s: %v", configFile, err))
-				}
-			}
-		}
-
-		spinner.Success("Data restored")
 	}
 
 	// Update tracking
@@ -261,7 +251,7 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 	}
 
 	// Clean up backup after successful upgrade
-	if backupDir != "" && !skipBackup {
+	if backupDir != "" {
 		ui.PrintInfo(fmt.Sprintf("Backup retained at: %s", backupDir))
 		ui.PrintInfo("Remove manually if no longer needed")
 	}

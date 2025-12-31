@@ -54,11 +54,22 @@ func TestUpgradeCommandDryRun(t *testing.T) {
 
 	// Test that upgrade with non-existent modpack shows appropriate error
 	rootCmd := &cobra.Command{Use: "chunk"}
-	rootCmd.AddCommand(UpgradeCmd)
-
-	// Reset flags for each test
-	upgradeDir = ""
-	dryRun = false
+	
+	// Create a fresh command instance to avoid flag state issues
+	testUpgradeCmd := &cobra.Command{
+		Use:   UpgradeCmd.Use,
+		Short: UpgradeCmd.Short,
+		Long:  UpgradeCmd.Long,
+		Args:  UpgradeCmd.Args,
+		RunE:  UpgradeCmd.RunE,
+	}
+	testUpgradeCmd.Flags().StringVarP(&upgradeDir, "dir", "d", "", "Server directory to upgrade (default: ./server)")
+	testUpgradeCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview changes without upgrading")
+	testUpgradeCmd.Flags().BoolVar(&skipBackup, "skip-backup", false, "Skip backup creation (not recommended)")
+	testUpgradeCmd.Flags().BoolVar(&upgradeVerify, "verify", true, "Verify checksums of downloaded files")
+	testUpgradeCmd.SilenceUsage = true
+	
+	rootCmd.AddCommand(testUpgradeCmd)
 
 	_, err = executeCommand(rootCmd, "upgrade", "test-pack", "--dir", serverDir, "--dry-run")
 	if err == nil {
@@ -119,11 +130,22 @@ func TestUpgradeWithTracking(t *testing.T) {
 
 	// Test upgrade without modpack arg (should detect from tracking)
 	rootCmd := &cobra.Command{Use: "chunk"}
-	rootCmd.AddCommand(UpgradeCmd)
-
-	// Reset flags
-	upgradeDir = ""
-	dryRun = false
+	
+	// Create a fresh command instance to avoid flag state issues
+	testUpgradeCmd := &cobra.Command{
+		Use:   UpgradeCmd.Use,
+		Short: UpgradeCmd.Short,
+		Long:  UpgradeCmd.Long,
+		Args:  UpgradeCmd.Args,
+		RunE:  UpgradeCmd.RunE,
+	}
+	testUpgradeCmd.Flags().StringVarP(&upgradeDir, "dir", "d", "", "Server directory to upgrade (default: ./server)")
+	testUpgradeCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview changes without upgrading")
+	testUpgradeCmd.Flags().BoolVar(&skipBackup, "skip-backup", false, "Skip backup creation (not recommended)")
+	testUpgradeCmd.Flags().BoolVar(&upgradeVerify, "verify", true, "Verify checksums of downloaded files")
+	testUpgradeCmd.SilenceUsage = true
+	
+	rootCmd.AddCommand(testUpgradeCmd)
 
 	_, err = executeCommand(rootCmd, "upgrade", "--dir", serverDir, "--dry-run")
 	// Should fail because we don't have benches, but should detect the modpack
