@@ -370,9 +370,9 @@ func (i *Installer) downloadAndExtractRecipe(identifier string, modpack *sources
 
 		// Track progress
 		var lastPercent int
-		var totalDownloaded int64
+		var downloadSize int64
 		err = recipeClient.DownloadFile(modpack.ManifestURL, downloadFile, func(downloaded, total int64) {
-			totalDownloaded = downloaded
+			downloadSize = downloaded // Track for metadata
 			if total > 0 {
 				percent := int(float64(downloaded) / float64(total) * 100)
 				// Only print when percentage changes to reduce output noise
@@ -393,7 +393,7 @@ func (i *Installer) downloadAndExtractRecipe(identifier string, modpack *sources
 				Slug:         recipe.Slug,
 				Version:      version,
 				Filename:     "modpack.mrpack",
-				Size:         totalDownloaded,
+				Size:         downloadSize,
 				DownloadURL:  modpack.ManifestURL,
 				SHA256:       recipe.SHA256,
 				DownloadedAt: time.Now(),

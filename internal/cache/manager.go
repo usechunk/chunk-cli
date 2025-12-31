@@ -245,8 +245,7 @@ func (m *Manager) RemoveFile(cachePath string) error {
 	// Remove the metadata file
 	metadataPath := m.GetMetadataPath(cachePath)
 	if err := os.Remove(metadataPath); err != nil && !os.IsNotExist(err) {
-		// Don't fail if metadata doesn't exist
-		return nil
+		return fmt.Errorf("failed to remove metadata file: %w", err)
 	}
 
 	return nil

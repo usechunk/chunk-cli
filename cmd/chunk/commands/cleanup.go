@@ -247,24 +247,17 @@ func formatSize(bytes int64) string {
 		return fmt.Sprintf("%d B", bytes)
 	}
 
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
+	// Calculate appropriate unit
+	sizeKB := float64(bytes) / unit
+	sizeMB := sizeKB / unit
+	sizeGB := sizeMB / unit
 
-	// Use floating point for MB and GB
-	sizeMB := float64(bytes) / (1024 * 1024)
-	sizeGB := float64(bytes) / (1024 * 1024 * 1024)
-
-	if exp >= 2 { // GB or higher
+	if sizeGB >= 1.0 {
 		return fmt.Sprintf("%.2f GB", sizeGB)
-	} else if exp >= 1 { // MB
+	} else if sizeMB >= 1.0 {
 		return fmt.Sprintf("%.0f MB", sizeMB)
 	}
-
-	// KB
-	return fmt.Sprintf("%.0f KB", float64(bytes)/1024)
+	return fmt.Sprintf("%.0f KB", sizeKB)
 }
 
 // promptConfirm prompts the user for confirmation
