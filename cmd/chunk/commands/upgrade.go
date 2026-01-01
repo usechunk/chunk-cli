@@ -227,7 +227,7 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 		for _, worldPath := range worldPaths {
 			dstPath := filepath.Join(absServerDir, worldPath)
 			srcPath := filepath.Join(backupDir, worldPath)
-			
+
 			// Only remove if backup has this world
 			if _, err := os.Stat(srcPath); err == nil {
 				if err := os.RemoveAll(dstPath); err != nil {
