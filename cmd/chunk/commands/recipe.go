@@ -120,11 +120,7 @@ func runRecipeValidate(cmd *cobra.Command, args []string) error {
 	totalWarnings := 0
 
 	for _, filePath := range filesToValidate {
-		if len(filesToValidate) > 1 {
-			fmt.Printf("\nValidating %s...\n", filepath.Base(filePath))
-		} else {
-			fmt.Printf("\nValidating %s...\n", filepath.Base(filePath))
-		}
+		fmt.Printf("\nValidating %s...\n", filepath.Base(filePath))
 		fmt.Println()
 
 		// Load recipe
@@ -176,7 +172,6 @@ func printValidationResults(recipe *search.Recipe, result *validation.Validation
 		passed  bool
 		message string
 	}{
-		{"JSON schema valid", len(result.Errors) == 0, ""},
 		{"Required fields present", !hasErrorForField(result, "name", "mc_version", "loader", "download_url"), ""},
 	}
 

@@ -20,6 +20,12 @@ type RecipeValidator struct {
 	httpClient *http.Client
 }
 
+// Constants for validation limits
+const (
+	// MaxDownloadSize is the maximum size of a file to download for checksum validation (2GB)
+	MaxDownloadSize = 2 * 1024 * 1024 * 1024
+)
+
 // NewRecipeValidator creates a new recipe validator
 func NewRecipeValidator() *RecipeValidator {
 	return &RecipeValidator{
@@ -272,8 +278,6 @@ func (v *RecipeValidator) validateURLReachability(downloadURL string) (int64, er
 			return 0, fmt.Errorf("failed to reach URL: %w", err)
 		}
 		defer resp.Body.Close()
-	} else {
-		defer resp.Body.Close()
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -296,8 +300,8 @@ func (v *RecipeValidator) validateChecksum(downloadURL, expectedSHA256 string) e
 
 	// Calculate checksum
 	hash := sha256.New()
-	// Limit to 2GB to prevent memory issues
-	limitedReader := io.LimitReader(resp.Body, 2*1024*1024*1024)
+	// Limit to MaxDownloadSize to prevent memory issues
+	limitedReader := io.LimitReader(resp.Body, MaxDownloadSize)
 	_, err = io.Copy(hash, limitedReader)
 	if err != nil {
 		return fmt.Errorf("failed to read download: %w", err)
