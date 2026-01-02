@@ -317,7 +317,7 @@ func checkBenches() []checkResult {
 			})
 		} else {
 			results = append(results, checkResult{
-				success: true,
+				success: false,
 				message: fmt.Sprintf("Benches: %d valid out of %d installed", validCount, totalBenches),
 			})
 		}
@@ -449,7 +449,7 @@ func checkInstallations() []checkResult {
 			})
 		} else {
 			results = append(results, checkResult{
-				success: true,
+				success: false,
 				message: fmt.Sprintf("Installations: %d valid out of %d tracked", validCount, totalInstalls),
 			})
 		}
