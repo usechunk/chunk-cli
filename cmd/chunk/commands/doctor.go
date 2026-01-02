@@ -465,7 +465,7 @@ func checkNetwork() []checkResult {
 			})
 			continue
 		}
-		
+
 		// Check status and close immediately
 		statusCode := resp.StatusCode
 		resp.Body.Close()
