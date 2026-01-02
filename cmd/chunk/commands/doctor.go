@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/alexinslc/chunk/internal/bench"
@@ -223,16 +222,13 @@ func checkDiskSpace() checkResult {
 		}
 	}
 
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(home, &stat); err != nil {
+	availableGB, err := getAvailableDiskSpace(home)
+	if err != nil {
 		return checkResult{
 			success: false,
 			message: "Could not check disk space",
 		}
 	}
-
-	// Available blocks * block size
-	availableGB := (stat.Bavail * uint64(stat.Bsize)) / (1024 * 1024 * 1024)
 
 	if availableGB < 5 {
 		return checkResult{
@@ -313,10 +309,18 @@ func checkBenches() []checkResult {
 
 	// Add summary if not verbose
 	if !doctorVerbose {
-		results = append(results, checkResult{
-			success: true,
-			message: fmt.Sprintf("Benches: %d installed, all valid", validCount),
-		})
+		totalBenches := len(benches)
+		if totalBenches == validCount {
+			results = append(results, checkResult{
+				success: true,
+				message: fmt.Sprintf("Benches: %d installed, all valid", validCount),
+			})
+		} else {
+			results = append(results, checkResult{
+				success: true,
+				message: fmt.Sprintf("Benches: %d valid out of %d installed", validCount, totalBenches),
+			})
+		}
 	}
 
 	return results
@@ -402,6 +406,7 @@ func checkInstallations() []checkResult {
 	}
 
 	var results []checkResult
+	validCount := 0
 	for _, inst := range installations {
 		// Check if installation directory exists
 		if _, err := os.Stat(inst.Path); os.IsNotExist(err) {
@@ -423,20 +428,31 @@ func checkInstallations() []checkResult {
 					fix:     "This may indicate a partial or corrupted installation",
 				})
 			}
-		} else if doctorVerbose {
-			results = append(results, checkResult{
-				success: true,
-				message: fmt.Sprintf("Installation '%s' is valid", inst.Slug),
-			})
+		} else {
+			validCount++
+			if doctorVerbose {
+				results = append(results, checkResult{
+					success: true,
+					message: fmt.Sprintf("Installation '%s' is valid", inst.Slug),
+				})
+			}
 		}
 	}
 
-	// Add summary if no issues and not verbose
-	if len(results) == 0 && !doctorVerbose {
-		results = append(results, checkResult{
-			success: true,
-			message: fmt.Sprintf("Installations: %d tracked, all valid", len(installations)),
-		})
+	// Add summary in non-verbose mode
+	if !doctorVerbose {
+		totalInstalls := len(installations)
+		if totalInstalls == validCount && len(results) == 0 {
+			results = append(results, checkResult{
+				success: true,
+				message: fmt.Sprintf("Installations: %d tracked, all valid", validCount),
+			})
+		} else {
+			results = append(results, checkResult{
+				success: true,
+				message: fmt.Sprintf("Installations: %d valid out of %d tracked", validCount, totalInstalls),
+			})
+		}
 	}
 
 	return results
