@@ -33,7 +33,6 @@ Performs the following checks:
   - Benches: Verify benches are valid Git repos
   - Recipes: Check for corrupted recipe files
   - Installations: Verify tracked installations exist
-  - Permissions: Check write permissions to install dirs
   - Network: Check connectivity to common sources
 
 Examples:
@@ -59,66 +58,34 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 
 	var results []checkResult
-	issueCount := 0
 
 	// Check Git
 	gitResult := checkGit()
 	results = append(results, gitResult)
-	if !gitResult.success {
-		issueCount++
-	}
 
 	// Check Java installations
 	javaResults := checkJava()
 	results = append(results, javaResults...)
-	for _, r := range javaResults {
-		if !r.success {
-			issueCount++
-		}
-	}
 
 	// Check disk space
 	diskResult := checkDiskSpace()
 	results = append(results, diskResult)
-	if !diskResult.success {
-		issueCount++
-	}
 
 	// Check benches
 	benchResults := checkBenches()
 	results = append(results, benchResults...)
-	for _, r := range benchResults {
-		if !r.success {
-			issueCount++
-		}
-	}
 
 	// Check recipes
 	recipeResults := checkRecipes()
 	results = append(results, recipeResults...)
-	for _, r := range recipeResults {
-		if !r.success {
-			issueCount++
-		}
-	}
 
 	// Check installations
 	installResults := checkInstallations()
 	results = append(results, installResults...)
-	for _, r := range installResults {
-		if !r.success {
-			issueCount++
-		}
-	}
 
 	// Check network connectivity
 	networkResults := checkNetwork()
 	results = append(results, networkResults...)
-	for _, r := range networkResults {
-		if !r.success {
-			issueCount++
-		}
-	}
 
 	// Print all results
 	for _, result := range results {
@@ -132,6 +99,8 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Count and report issues
+	issueCount := countIssues(results)
 	fmt.Println()
 	if issueCount == 0 {
 		fmt.Println("No issues found.")
@@ -143,6 +112,17 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 
 	return nil
+}
+
+// countIssues counts the number of failed checks in the results
+func countIssues(results []checkResult) int {
+	count := 0
+	for _, r := range results {
+		if !r.success {
+			count++
+		}
+	}
+	return count
 }
 
 // checkGit verifies that Git is installed
@@ -346,13 +326,13 @@ func checkRecipes() []checkResult {
 
 	totalRecipes := 0
 	var corruptedRecipes []string
+	benchLoadErrors := 0
 
 	for _, b := range benches {
 		recipes, err := search.LoadRecipesFromBench(b.Path, b.Name)
 		if err != nil {
-			if doctorVerbose {
-				corruptedRecipes = append(corruptedRecipes, fmt.Sprintf("%s (load error)", b.Name))
-			}
+			benchLoadErrors++
+			corruptedRecipes = append(corruptedRecipes, fmt.Sprintf("%s (load error)", b.Name))
 			continue
 		}
 
@@ -361,7 +341,9 @@ func checkRecipes() []checkResult {
 		// Check each recipe for basic validity
 		for _, recipe := range recipes {
 			if recipe.Slug == "" || recipe.MCVersion == "" {
-				corruptedRecipes = append(corruptedRecipes, recipe.Slug)
+				// Store more identifying information for debugging
+				recipeInfo := fmt.Sprintf("%s/%s (slug=%q, mcVersion=%q)", b.Name, filepath.Base(b.Path), recipe.Slug, recipe.MCVersion)
+				corruptedRecipes = append(corruptedRecipes, recipeInfo)
 			}
 		}
 	}
@@ -369,7 +351,7 @@ func checkRecipes() []checkResult {
 	if len(corruptedRecipes) > 0 {
 		return []checkResult{{
 			success: false,
-			message: fmt.Sprintf("Recipes: %d corrupted out of %d", len(corruptedRecipes), totalRecipes),
+			message: fmt.Sprintf("Recipes: %d corrupted out of %d", len(corruptedRecipes), totalRecipes+benchLoadErrors),
 			fix:     "chunk bench update --all to refresh benches",
 		}}
 	}
@@ -483,7 +465,7 @@ func checkNetwork() []checkResult {
 			})
 			continue
 		}
-		resp.Body.Close()
+		defer resp.Body.Close()
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 			results = append(results, checkResult{

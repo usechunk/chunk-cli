@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	kernel32         = syscall.NewLazyDLL("kernel32.dll")
-	getDiskFreeSpace = kernel32.NewProc("GetDiskFreeSpaceExW")
+	kernel32             = syscall.NewLazyDLL("kernel32.dll")
+	getDiskFreeSpaceEx = kernel32.NewProc("GetDiskFreeSpaceExW")
 )
 
 // getAvailableDiskSpace returns available disk space in GB for Windows
@@ -23,7 +23,7 @@ func getAvailableDiskSpace(path string) (uint64, error) {
 		return 0, err
 	}
 
-	ret, _, err := getDiskFreeSpace.Call(
+	ret, _, err := getDiskFreeSpaceEx.Call(
 		uintptr(unsafe.Pointer(pathPtr)),
 		uintptr(unsafe.Pointer(&freeBytesAvailable)),
 		uintptr(unsafe.Pointer(&totalNumberOfBytes)),
@@ -31,7 +31,7 @@ func getAvailableDiskSpace(path string) (uint64, error) {
 	)
 
 	if ret == 0 {
-		return 0, err
+		return 0, fmt.Errorf("failed to get disk space information: %w", err)
 	}
 
 	availableGB := uint64(freeBytesAvailable) / (1024 * 1024 * 1024)
