@@ -26,7 +26,6 @@ import (
 var (
 	templateRecipe string
 	outputDir      string
-	validateAll    bool
 )
 
 var RecipeCmd = &cobra.Command{
@@ -118,6 +117,7 @@ func runRecipeValidate(cmd *cobra.Command, args []string) error {
 	validator := validation.NewRecipeValidator()
 	totalErrors := 0
 	totalWarnings := 0
+	loadFailures := 0
 
 	for _, filePath := range filesToValidate {
 		fmt.Printf("\nValidating %s...\n", filepath.Base(filePath))
@@ -127,7 +127,9 @@ func runRecipeValidate(cmd *cobra.Command, args []string) error {
 		recipe, err := search.LoadRecipe(filePath, "")
 		if err != nil {
 			ui.PrintError(fmt.Sprintf("Failed to load recipe: %v", err))
+			fmt.Println()
 			totalErrors++
+			loadFailures++
 			continue
 		}
 
@@ -145,7 +147,11 @@ func runRecipeValidate(cmd *cobra.Command, args []string) error {
 	if len(filesToValidate) > 1 {
 		fmt.Println()
 		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		fmt.Printf("Validated %d file(s)\n", len(filesToValidate))
+		fmt.Printf("Validated %d file(s)", len(filesToValidate))
+		if loadFailures > 0 {
+			fmt.Printf(" (%d failed to load)", loadFailures)
+		}
+		fmt.Println()
 		if totalErrors > 0 {
 			ui.PrintError(fmt.Sprintf("%d error(s) found", totalErrors))
 		}

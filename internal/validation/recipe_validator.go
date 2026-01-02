@@ -26,6 +26,12 @@ const (
 	MaxDownloadSize = 2 * 1024 * 1024 * 1024
 )
 
+// Compiled regular expressions for version validation
+var (
+	mcVersionRegexp = regexp.MustCompile(`^\d+\.\d+(\.\d+)?$`)
+	semverRegexp    = regexp.MustCompile(`^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$`)
+)
+
 // NewRecipeValidator creates a new recipe validator
 func NewRecipeValidator() *RecipeValidator {
 	return &RecipeValidator{
@@ -278,6 +284,9 @@ func (v *RecipeValidator) validateURLReachability(downloadURL string) (int64, er
 			return 0, fmt.Errorf("failed to reach URL: %w", err)
 		}
 		defer resp.Body.Close()
+	} else if resp.Body != nil {
+		// Close HEAD response body to prevent resource leaks
+		defer resp.Body.Close()
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -296,6 +305,11 @@ func (v *RecipeValidator) validateChecksum(downloadURL, expectedSHA256 string) e
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	// Check Content-Length before downloading to prevent truncated checksums
+	if resp.ContentLength > MaxDownloadSize {
+		return fmt.Errorf("file too large: %d bytes (max %d bytes)", resp.ContentLength, MaxDownloadSize)
 	}
 
 	// Calculate checksum
@@ -318,15 +332,13 @@ func (v *RecipeValidator) validateChecksum(downloadURL, expectedSHA256 string) e
 // isValidMCVersion checks if a Minecraft version is valid
 func isValidMCVersion(version string) bool {
 	// Match versions like 1.20.1, 1.19.2, etc.
-	matched, _ := regexp.MatchString(`^\d+\.\d+(\.\d+)?$`, version)
-	return matched
+	return mcVersionRegexp.MatchString(version)
 }
 
 // isValidSemver checks if a version follows semantic versioning
 func isValidSemver(version string) bool {
 	// Basic semver check: MAJOR.MINOR.PATCH
-	matched, _ := regexp.MatchString(`^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$`, version)
-	return matched
+	return semverRegexp.MatchString(version)
 }
 
 // isValidSPDXLicense checks if a license is a valid SPDX identifier
