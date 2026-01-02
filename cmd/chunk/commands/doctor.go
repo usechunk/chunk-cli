@@ -465,9 +465,12 @@ func checkNetwork() []checkResult {
 			})
 			continue
 		}
-		defer resp.Body.Close()
+		
+		// Check status and close immediately
+		statusCode := resp.StatusCode
+		resp.Body.Close()
 
-		if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+		if statusCode >= 200 && statusCode < 400 {
 			results = append(results, checkResult{
 				success: true,
 				message: fmt.Sprintf("Network: %s reachable", source.name),
@@ -475,7 +478,7 @@ func checkNetwork() []checkResult {
 		} else {
 			results = append(results, checkResult{
 				success: false,
-				message: fmt.Sprintf("Network: %s returned status %d", source.name, resp.StatusCode),
+				message: fmt.Sprintf("Network: %s returned status %d", source.name, statusCode),
 				fix:     "Check your internet connection or try again later",
 			})
 		}
