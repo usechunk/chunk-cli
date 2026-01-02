@@ -76,7 +76,7 @@ chunk uninstall atm9 --keep-worlds
 
 - **[Full Documentation](https://github.com/usechunk/chunk-docs)** - Comprehensive guides
 - **[CLI Usage Guide](docs/CLI_USAGE.md)** - Complete command reference
-- **[.chunk.json Spec](docs/chunk-json-spec.md)** - Modpack manifest format
+- **[Installed Manifest Spec](docs/INSTALLED_MANIFEST.md)** - Server manifest format
 - **[Architecture](https://github.com/usechunk/chunk-docs/blob/main/ARCHITECTURE.md)** - Platform design
 - **[API Reference](https://github.com/usechunk/chunk-docs/blob/main/API.md)** - ChunkHub API
 
@@ -88,7 +88,28 @@ chunk uninstall atm9 --keep-worlds
 
 ## 🎨 For Modpack Creators
 
-Add a `.chunk.json` to your repository to make it installable:
+### Creating Recipes
+
+The recommended way to distribute modpacks is through recipe benches. Create a recipe JSON file:
+
+```json
+{
+  "slug": "my-modpack",
+  "name": "My Awesome Modpack",
+  "version": "1.0.0",
+  "mc_version": "1.20.1",
+  "loader": "forge",
+  "loader_version": "47.2.0",
+  "download_url": "https://example.com/modpack.zip",
+  "sha256": "abc123..."
+}
+```
+
+Submit your recipe to [usechunk/recipes](https://github.com/usechunk/recipes) to make it available to all Chunk users.
+
+### Alternative: GitHub-Hosted Modpacks
+
+You can also add an installed manifest template (`.chunk.json`) to your repository:
 
 ```json
 {
@@ -103,7 +124,7 @@ Add a `.chunk.json` to your repository to make it installable:
 
 Then users can install with: `chunk install yourusername/your-modpack`
 
-See the **[.chunk.json specification](docs/chunk-json-spec.md)** for the full format.
+See the **[Installed Manifest specification](docs/INSTALLED_MANIFEST.md)** for the full format.
 
 ## 🛠️ Development
 

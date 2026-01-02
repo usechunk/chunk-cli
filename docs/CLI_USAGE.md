@@ -362,7 +362,9 @@ chunk diff ./my-server atm9:latest
 
 ## Configuration
 
-Chunk uses a `.chunk.json` manifest file for modpack specifications:
+### Installed Manifest (.chunk.json)
+
+Chunk creates a `.chunk.json` installed manifest in server directories to track the current installation:
 
 ```json
 {
@@ -383,6 +385,29 @@ Chunk uses a `.chunk.json` manifest file for modpack specifications:
   ]
 }
 ```
+
+This tracks the installed modpack for upgrades, validation, and management. See [INSTALLED_MANIFEST.md](INSTALLED_MANIFEST.md) for complete specification.
+
+### Recipe JSON (in benches)
+
+Recipes are stored in bench repositories (like `usechunk/recipes`) and define how to download and install modpacks:
+
+```json
+{
+  "slug": "my-modpack",
+  "name": "My Modpack",
+  "version": "1.0.0",
+  "mc_version": "1.20.1",
+  "loader": "forge",
+  "loader_version": "47.2.0",
+  "download_url": "https://example.com/modpack.zip",
+  "sha256": "abc123...",
+  "recommended_ram_gb": 8,
+  "tags": ["tech", "magic"]
+}
+```
+
+For recipe specification, see [usechunk/recipes](https://github.com/usechunk/recipes).
 
 ## Java Requirements
 

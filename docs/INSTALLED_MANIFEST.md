@@ -1,8 +1,22 @@
-# .chunk.json Specification
+# Installed Manifest Specification
 
 ## Overview
 
-The `.chunk.json` file is the manifest format used by Chunk to define modpack configurations. It serves as a universal specification that modpack creators can add to their repositories to make them compatible with the Chunk CLI.
+The `.chunk.json` file is the **installed manifest** format that Chunk creates in server directories to track the currently installed modpack configuration. This is distinct from **recipe JSON files** which are templates stored in benches.
+
+### Distinction: Recipe vs Installed Manifest
+
+- **Recipe JSON** (stored in `Recipes/` directory in benches like `usechunk/recipes`):
+  - Template/formula defining how to download and install a modpack
+  - Contains `download_url`, `sha256`, and metadata
+  - Lives in Git repositories
+  - See [usechunk/recipes](https://github.com/usechunk/recipes) for recipe specification
+
+- **Installed Manifest** (`.chunk.json` in server directory):
+  - Instance-specific configuration tracking what's installed
+  - Created automatically by Chunk during installation
+  - Contains current modpack state and configuration
+  - Used for upgrades, validation, and management
 
 ## Format Version
 
@@ -10,16 +24,22 @@ Current specification version: **1.0.0**
 
 ## File Location
 
-For GitHub-hosted modpacks, place `.chunk.json` in the repository root:
+The `.chunk.json` installed manifest is automatically created by Chunk in the server installation directory:
+
 ```
-my-modpack/
-├── .chunk.json
+my-server/
+├── .chunk.json          # Installed manifest (created by Chunk)
 ├── mods/
 ├── config/
-└── README.md
+├── world/
+└── server.properties
 ```
 
-For server installations, Chunk automatically creates `.chunk.json` in the server directory to track the installed modpack.
+This file tracks the installed modpack and enables:
+- Version upgrade detection
+- Installation validation
+- Configuration management
+- Backup and rollback support
 
 ## Schema
 
@@ -393,15 +413,9 @@ Fix: Use Forge 43.2.0 or newer for 1.19.2
 
 ## Usage Patterns
 
-### For Modpack Creators
+### For Server Installations
 
-1. Create `.chunk.json` in your repository root
-2. Define your modpack configuration
-3. Users can install with: `chunk install username/repo`
-
-### For Server Admins
-
-`.chunk.json` is automatically created when you install a modpack:
+The `.chunk.json` installed manifest is automatically created when you install a modpack:
 
 ```bash
 chunk install atm9 --dir ./my-server
@@ -409,33 +423,135 @@ chunk install atm9 --dir ./my-server
 ```
 
 This tracks the installation and enables:
-- Version upgrades: `chunk upgrade atm9`
-- Diff checking: `chunk diff atm9`
-- Automated backups before changes
+- Version upgrades: `chunk upgrade`
+- Installation validation: `chunk validate`
+- Configuration tracking
 
-### For Local Modpacks
+### Recipe-Based Installations
 
-Convert an existing modpack to use Chunk:
+When installing from a recipe bench, Chunk also creates a `.chunk-recipe.json` file to track the source recipe:
 
-1. Create `.chunk.json` in your modpack directory
-2. Install: `chunk install ./path/to/modpack`
+```bash
+chunk install atm9
+# Creates:
+#   ./server/.chunk.json         (installed manifest)
+#   ./server/.chunk-recipe.json  (recipe snapshot)
+```
+
+The `.chunk-recipe.json` file contains recipe metadata used for upgrade detection.
+
+### GitHub Installations
+
+For modpacks hosted on GitHub, the repository can include a `.chunk.json` file that Chunk uses as a template during installation. However, this is less common now that recipe benches are the primary distribution method.
+
+---
+
+## Example Formats
+
+### Installed Manifest (.chunk.json)
+
+This is what Chunk creates in your server directory:
+
+```json
+{
+  "schema_version": "1.0.0",
+  "name": "All The Mods 9",
+  "version": "0.3.2",
+  "description": "A kitchen-sink modpack featuring tech, magic, and exploration mods",
+  "author": "ATM Team",
+  "homepage": "https://www.curseforge.com/minecraft/modpacks/all-the-mods-9",
+  
+  "mc_version": "1.20.1",
+  "loader": "forge",
+  "loader_version": "47.2.0",
+  "java_version": 17,
+  "recommended_ram_gb": 8,
+  
+  "mods": [
+    {
+      "id": "jei",
+      "name": "Just Enough Items",
+      "version": "15.2.0.27",
+      "url": "https://modrinth.com/mod/jei",
+      "side": "both",
+      "required": true,
+      "filename": "jei-1.20.1-forge-15.2.0.27.jar"
+    }
+  ],
+  
+  "optional": {
+    "server_properties": {
+      "max-players": 20,
+      "view-distance": 12,
+      "difficulty": "normal"
+    }
+  }
+}
+```
+
+### Recipe JSON (Recipes/slug.json in benches)
+
+This is what lives in recipe bench repositories:
+
+```json
+{
+  "slug": "atm9",
+  "name": "All The Mods 9",
+  "version": "0.3.2",
+  "description": "A kitchen-sink modpack featuring tech, magic, and exploration mods",
+  "mc_version": "1.20.1",
+  "loader": "forge",
+  "loader_version": "47.2.0",
+  "recommended_ram_gb": 8,
+  "disk_space_gb": 5,
+  "java_version": 17,
+  "tags": ["kitchen-sink", "tech", "magic", "exploration"],
+  "author": "ATM Team",
+  "homepage": "https://www.curseforge.com/minecraft/modpacks/all-the-mods-9",
+  "license": "ARR",
+  "download_url": "https://edge.forgecdn.net/files/5000/123/ATM9-0.3.2-Server.zip",
+  "download_size_mb": 250,
+  "sha256": "abc123...def456"
+}
+```
+
+**Key Differences:**
+- Recipe has `download_url` and `sha256` for fetching the modpack
+- Recipe has `disk_space_gb` and `download_size_mb` for system requirements
+- Recipe has `tags` for searchability
+- Installed manifest has detailed `mods` array with all installed mods
+- Installed manifest has `optional` section for server configuration
+
+For the complete recipe specification, see [usechunk/recipes](https://github.com/usechunk/recipes).
 
 ---
 
 ## Migration from Other Formats
 
-### From Modrinth (.mrpack)
+Chunk can install modpacks from various formats and will automatically create the `.chunk.json` installed manifest:
 
-Chunk automatically converts Modrinth packs to `.chunk.json`:
+### From Modrinth (.mrpack)
 
 ```bash
 chunk install mypack.mrpack
-# Generates .chunk.json from modrinth.index.json
+# Installs modpack and generates .chunk.json installed manifest
 ```
 
-### From CurseForge
+### From Recipe Benches
 
-Support planned for future release.
+```bash
+chunk install atm9
+# Downloads from recipe, installs, and creates .chunk.json
+```
+
+### From GitHub
+
+```bash
+chunk install username/modpack-repo
+# Clones repo and uses .chunk.json if present, or creates one
+```
+
+Note: The installed manifest format (`.chunk.json`) is distinct from source formats like recipes or Modrinth manifests.
 
 ---
 
@@ -471,8 +587,8 @@ Chunk always supports older schema versions.
 
 ## Support
 
-For questions or issues with .chunk.json:
+For questions or issues:
 
-- Documentation: https://docs.chunkhub.io
-- GitHub Issues: https://github.com/alexinslc/chunk/issues
-- Discord: https://discord.gg/chunk
+- **Installed Manifest (.chunk.json)**: This documentation and [GitHub Issues](https://github.com/usechunk/chunk-cli/issues)
+- **Recipe Specification**: See [usechunk/recipes](https://github.com/usechunk/recipes)
+- **General Documentation**: [usechunk/chunk-docs](https://github.com/usechunk/chunk-docs)
