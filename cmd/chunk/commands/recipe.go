@@ -19,6 +19,7 @@ import (
 	"github.com/alexinslc/chunk/internal/bench"
 	"github.com/alexinslc/chunk/internal/search"
 	"github.com/alexinslc/chunk/internal/ui"
+	"github.com/alexinslc/chunk/internal/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -53,6 +54,290 @@ Example:
   chunk recipe create --template atm9
   chunk recipe create --output ./my-recipes`,
 	RunE: runRecipeCreate,
+}
+
+var recipeValidateCmd = &cobra.Command{
+	Use:   "validate <file>",
+	Short: "Validate a recipe JSON file",
+	Long: `Validate a recipe JSON file against the schema and check for common issues.
+
+This command performs the following checks:
+- JSON schema validation
+- Required fields presence
+- URL reachability (download URL returns 200)
+- Checksum verification (SHA-256 matches download)
+- Version format validation (semver, Minecraft version)
+- Loader compatibility
+- License SPDX identifier validation
+- Naming consistency (slug matches filename)
+
+Example:
+  chunk recipe validate my-pack.json
+  chunk recipe validate .`,
+	Args: cobra.ExactArgs(1),
+	RunE: runRecipeValidate,
+}
+
+func runRecipeValidate(cmd *cobra.Command, args []string) error {
+	path := args[0]
+
+	// Check if path is a directory
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("failed to access path: %w", err)
+	}
+
+	var filesToValidate []string
+	if fileInfo.IsDir() {
+		// Validate all JSON files in directory
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			return fmt.Errorf("failed to read directory: %w", err)
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+
+			ext := strings.ToLower(filepath.Ext(entry.Name()))
+			if ext == ".json" || ext == ".yaml" || ext == ".yml" {
+				filesToValidate = append(filesToValidate, filepath.Join(path, entry.Name()))
+			}
+		}
+
+		if len(filesToValidate) == 0 {
+			return fmt.Errorf("no recipe files found in directory: %s", path)
+		}
+	} else {
+		// Validate single file
+		filesToValidate = []string{path}
+	}
+
+	validator := validation.NewRecipeValidator()
+	totalErrors := 0
+	totalWarnings := 0
+	loadFailures := 0
+
+	for _, filePath := range filesToValidate {
+		fmt.Printf("\nValidating %s...\n", filepath.Base(filePath))
+		fmt.Println()
+
+		// Load recipe
+		recipe, err := search.LoadRecipe(filePath, "")
+		if err != nil {
+			ui.PrintError(fmt.Sprintf("Failed to load recipe: %v", err))
+			fmt.Println()
+			totalErrors++
+			loadFailures++
+			continue
+		}
+
+		// Validate recipe
+		result, downloadSize := validator.ValidateRecipeWithNetwork(recipe, filePath)
+
+		// Print validation results
+		printValidationResults(recipe, result, downloadSize)
+
+		totalErrors += len(result.Errors)
+		totalWarnings += len(result.Warnings)
+	}
+
+	// Print summary if multiple files
+	if len(filesToValidate) > 1 {
+		fmt.Println()
+		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+		fmt.Printf("Validated %d file(s)", len(filesToValidate))
+		if loadFailures > 0 {
+			fmt.Printf(" (%d failed to load)", loadFailures)
+		}
+		fmt.Println()
+		if totalErrors > 0 {
+			ui.PrintError(fmt.Sprintf("%d error(s) found", totalErrors))
+		}
+		if totalWarnings > 0 {
+			ui.PrintWarning(fmt.Sprintf("%d warning(s) found", totalWarnings))
+		}
+		if totalErrors == 0 && totalWarnings == 0 {
+			ui.PrintSuccess("All files passed validation!")
+		}
+		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	}
+
+	if totalErrors > 0 {
+		return fmt.Errorf("validation failed with %d error(s)", totalErrors)
+	}
+
+	return nil
+}
+
+func printValidationResults(recipe *search.Recipe, result *validation.ValidationResult, downloadSize int64) {
+	// Track checks performed
+	checks := []struct {
+		name    string
+		passed  bool
+		message string
+	}{
+		{"Required fields present", !hasErrorForField(result, "name", "mc_version", "loader", "download_url"), ""},
+	}
+
+	// Check URL reachability
+	urlError := hasErrorForField(result, "download_url")
+	if !urlError && recipe.DownloadURL != "" {
+		sizeStr := ""
+		if downloadSize > 0 {
+			sizeMB := downloadSize / (1024 * 1024)
+			sizeStr = fmt.Sprintf(" (%d MB)", sizeMB)
+		}
+		checks = append(checks, struct {
+			name    string
+			passed  bool
+			message string
+		}{"Download URL reachable", true, sizeStr})
+	} else if !urlError && recipe.DownloadURL == "" {
+		checks = append(checks, struct {
+			name    string
+			passed  bool
+			message string
+		}{"Download URL reachable", false, " (missing)"})
+	} else {
+		checks = append(checks, struct {
+			name    string
+			passed  bool
+			message string
+		}{"Download URL reachable", false, ""})
+	}
+
+	// Check checksum
+	checksumError := hasErrorForField(result, "sha256")
+	if !checksumError && recipe.SHA256 != "" {
+		checks = append(checks, struct {
+			name    string
+			passed  bool
+			message string
+		}{"Checksum matches", true, ""})
+	} else if !checksumError && recipe.SHA256 == "" {
+		checks = append(checks, struct {
+			name    string
+			passed  bool
+			message string
+		}{"Checksum provided", false, " (recommended)"})
+	} else {
+		checks = append(checks, struct {
+			name    string
+			passed  bool
+			message string
+		}{"Checksum matches", false, ""})
+	}
+
+	// Check Minecraft version
+	mcVersionError := hasErrorForField(result, "mc_version")
+	if !mcVersionError && recipe.MCVersion != "" {
+		checks = append(checks, struct {
+			name    string
+			passed  bool
+			message string
+		}{"Minecraft version valid", true, fmt.Sprintf(" (%s)", recipe.MCVersion)})
+	} else {
+		checks = append(checks, struct {
+			name    string
+			passed  bool
+			message string
+		}{"Minecraft version valid", false, ""})
+	}
+
+	// Check loader
+	loaderError := hasErrorForField(result, "loader")
+	if !loaderError && recipe.Loader != "" {
+		loaderStr := recipe.Loader
+		if recipe.LoaderVersion != "" {
+			loaderStr += " " + recipe.LoaderVersion
+		}
+		checks = append(checks, struct {
+			name    string
+			passed  bool
+			message string
+		}{"Loader version valid", true, fmt.Sprintf(" (%s)", loaderStr)})
+	} else {
+		checks = append(checks, struct {
+			name    string
+			passed  bool
+			message string
+		}{"Loader version valid", false, ""})
+	}
+
+	// Check license
+	licenseError := hasErrorForField(result, "license")
+	if !licenseError && recipe.License != "" {
+		checks = append(checks, struct {
+			name    string
+			passed  bool
+			message string
+		}{"License valid SPDX", true, fmt.Sprintf(" (%s)", recipe.License)})
+	} else if recipe.License == "" {
+		checks = append(checks, struct {
+			name    string
+			passed  bool
+			message string
+		}{"License valid SPDX", false, " (recommended)"})
+	} else {
+		checks = append(checks, struct {
+			name    string
+			passed  bool
+			message string
+		}{"License valid SPDX", false, ""})
+	}
+
+	// Print checks
+	for _, check := range checks {
+		if check.passed {
+			ui.PrintSuccess(check.name + check.message)
+		} else {
+			ui.PrintError(check.name + check.message)
+		}
+	}
+
+	// Print specific errors
+	if len(result.Errors) > 0 {
+		fmt.Println()
+		for _, err := range result.Errors {
+			ui.PrintError(fmt.Sprintf("%s: %s", err.Field, err.Message))
+			if err.Suggestion != "" {
+				fmt.Printf("  Suggested: %s\n", err.Suggestion)
+			}
+		}
+	}
+
+	// Print warnings
+	if len(result.Warnings) > 0 {
+		fmt.Println()
+		for _, warn := range result.Warnings {
+			ui.PrintWarning(fmt.Sprintf("%s: %s", warn.Field, warn.Message))
+		}
+	}
+
+	// Print summary
+	fmt.Println()
+	if len(result.Errors) == 0 && len(result.Warnings) == 0 {
+		ui.PrintSuccess("All checks passed!")
+	} else {
+		fmt.Printf("%d error(s), %d warning(s)\n", len(result.Errors), len(result.Warnings))
+		if len(result.Errors) > 0 {
+			fmt.Println()
+			fmt.Println("Fix errors and try again.")
+		}
+	}
+}
+
+func hasErrorForField(result *validation.ValidationResult, fields ...string) bool {
+	for _, field := range fields {
+		for _, err := range result.Errors {
+			if err.Field == field {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func runRecipeCreate(cmd *cobra.Command, args []string) error {
@@ -596,6 +881,7 @@ func saveRecipe(recipe *search.Recipe, outputPath string) error {
 func init() {
 	// Add subcommands
 	RecipeCmd.AddCommand(recipeCreateCmd)
+	RecipeCmd.AddCommand(recipeValidateCmd)
 
 	// Flags for create command
 	recipeCreateCmd.Flags().StringVar(&templateRecipe, "template", "", "Start from an existing recipe (name, slug, or file path)")
